@@ -73,8 +73,6 @@ M.format_results = function(results, viewport_width)
   local lines = {}
   viewport_width = viewport_width or 80
 
-  -- Handle different result formats
-  -- This is a placeholder - actual format depends on what qlue-ls returns
   if type(results) == "table" then
     -- Check if it's a SPARQL results format
     if results.head and results.results then
@@ -177,10 +175,12 @@ M.display_results = function(results)
   local lines = M.format_results(results, viewport_width)
 
   -- Set buffer content
-  vim.api.nvim_buf_set_option(bufnr, "modifiable", true)
+
+  vim.api.nvim_set_option_value("modifiable", true, { scope = "local", buf = bufnr})
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
-  vim.api.nvim_buf_set_option(bufnr, "modified", false)
+  vim.api.nvim_set_option_value("modifiable", false, { scope = "local", buf = bufnr})
+  vim.api.nvim_set_option_value("modified", false, { scope = "local", buf = bufnr})
+  vim.keymap.set("n", "q", "<cmd>quit<CR>", {buffer = bufnr, silent = true});
 end
 
 ---Execute the SPARQL query in the current buffer
