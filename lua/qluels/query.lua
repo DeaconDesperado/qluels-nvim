@@ -167,7 +167,7 @@ M.execute_buffer_query = function(backend_name, bufnr)
     bufnr = vim.api.nvim_get_current_buf()
   end
 
-  -- Get the entire buffer content as the query
+  -- Check if buffer is empty
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local query = table.concat(lines, "\n")
 
@@ -178,7 +178,8 @@ M.execute_buffer_query = function(backend_name, bufnr)
 
   vim.notify("Executing query...", vim.log.levels.INFO)
 
-  lsp.execute_query(query, backend_name, function(result, err)
+  -- Server reads query from the text document itself
+  lsp.execute_query(function(result, err)
     if err then
       vim.notify("Query execution failed: " .. err, vim.log.levels.ERROR)
       return
@@ -194,6 +195,7 @@ M.execute_buffer_query = function(backend_name, bufnr)
 end
 
 ---Execute a visual selection as a SPARQL query
+---Creates a temporary buffer with the selection and executes it
 ---@param backend_name? string Backend name (nil for default)
 M.execute_visual_query = function(backend_name)
   -- Get visual selection
@@ -212,7 +214,16 @@ M.execute_visual_query = function(backend_name)
 
   vim.notify("Executing query...", vim.log.levels.INFO)
 
-  lsp.execute_query(query, backend_name, function(result, err)
+  -- Create a temporary scratch buffer with the selected query
+  local temp_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(temp_buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(temp_buf, 'filetype', 'sparql')
+
+  -- Execute query from the temporary buffer
+  lsp.execute_query(function(result, err)
+    -- Clean up temporary buffer
+    vim.api.nvim_buf_delete(temp_buf, { force = true })
+
     if err then
       vim.notify("Query execution failed: " .. err, vim.log.levels.ERROR)
       return
@@ -224,7 +235,7 @@ M.execute_visual_query = function(backend_name)
     else
       vim.notify("Query returned no results", vim.log.levels.WARN)
     end
-  end, 0)
+  end, temp_buf)
 end
 
 ---Close the result buffer window

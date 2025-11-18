@@ -219,15 +219,16 @@ qluels.lsp.ping_backend({name}, {callback}, {bufnr})
     Returns: ~
         (boolean) Whether the request was sent
 
-qluels.lsp.execute_query({query}, {backend}, {callback}, {bufnr})
+qluels.lsp.execute_query({callback}, {bufnr}, {max_result_size}, {result_offset})
                                             *qluels.lsp.execute_query()*
-    Execute a SPARQL query.
+    Execute a SPARQL query from a text document.
+    The query is read from the buffer contents by the server.
 
     Parameters: ~
-        {query}    (string) SPARQL query
-        {backend}  (string|nil) Backend name (nil for default)
-        {callback} (function) Called with (result, err)
-        {bufnr}    (number|nil) Buffer number (default: current)
+        {callback}        (function) Called with (result, err)
+        {bufnr}           (number|nil) Buffer number (default: current)
+        {max_result_size} (number|nil) Maximum number of results
+        {result_offset}   (number|nil) Offset for result pagination
 
     Returns: ~
         (boolean) Whether the request was sent

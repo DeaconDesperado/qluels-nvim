@@ -47,7 +47,7 @@ describe("qluels.lsp", function()
 
   describe("execute_query", function()
     it("returns false when qlue-ls is not attached", function()
-      local success = lsp.execute_query("SELECT * WHERE { ?s ?p ?o }", nil, function() end)
+      local success = lsp.execute_query(function() end)
       assert.is_false(success)
     end)
   end)

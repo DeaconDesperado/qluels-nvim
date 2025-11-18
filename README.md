@@ -175,15 +175,15 @@ qluels.lsp.ping_backend("mybackend", function(available, err)
   end
 end)
 
--- Execute a query
+-- Execute a query from current buffer
+-- The query is read from the buffer by the server
 qluels.lsp.execute_query(
-  "SELECT * WHERE { ?s ?p ?o } LIMIT 10",
-  "mybackend",
   function(result, err)
     if result then
       print(vim.inspect(result))
     end
   end
+  -- Optional: bufnr, max_result_size, result_offset
 )
 
 -- Execute buffer query

@@ -147,12 +147,13 @@ end
 
 ---Execute a SPARQL query against a backend
 ---Sends a qlueLs/executeQuery request
----@param query string SPARQL query to execute
----@param backend_name? string Backend name (nil for default)
+---The query is read from the current buffer contents
 ---@param callback fun(result?: table, err?: string) Callback with query results
 ---@param bufnr? number Buffer number (0 or nil for current)
+---@param max_result_size? number Maximum number of results to return
+---@param result_offset? number Offset for result pagination
 ---@return boolean success Whether the request was sent
-M.execute_query = function(query, backend_name, callback, bufnr)
+M.execute_query = function(callback, bufnr, max_result_size, result_offset)
   bufnr = bufnr or 0
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
@@ -164,9 +165,19 @@ M.execute_query = function(query, backend_name, callback, bufnr)
     return false
   end
 
-  local params = { query = query }
-  if backend_name then
-    params.backendName = backend_name
+  -- Build params according to ExecuteQueryParams schema
+  local params = {
+    textDocument = {
+      uri = vim.uri_from_bufnr(bufnr)
+    }
+  }
+
+  if max_result_size then
+    params.maxResultSize = max_result_size
+  end
+
+  if result_offset then
+    params.resultOffset = result_offset
   end
 
   client:request("qlueLs/executeQuery", params, function(err, result)
