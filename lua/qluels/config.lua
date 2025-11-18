@@ -1,7 +1,12 @@
 ---@class QluelsConfig
+---@field server QluelsServer Settings for the language server itself
 ---@field backends table<string, QluelsBackend> Pre-configured backends
 ---@field auto_attach boolean Automatically attach LSP to SPARQL files
 ---@field result_buffer QluelsResultBufferConfig Result buffer display options
+
+---@class QluelsServer
+---@field capabilities? table|nil The client capabilities. 
+---@field filetypes? table The filetypes to activate for by default 
 
 ---@class QluelsBackend
 ---@field service QluelsService Service configuration
@@ -23,6 +28,10 @@ local M = {}
 
 ---@type QluelsConfig
 M.defaults = {
+  server = {
+    capabilities = vim.lsp.protocol.make_client_capabilities(),
+    filetypes = {"sparql"},
+  },
   backends = {},
   auto_attach = true,
   result_buffer = {

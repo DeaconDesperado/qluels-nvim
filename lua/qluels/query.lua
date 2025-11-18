@@ -28,10 +28,10 @@ M.create_result_buffer = function()
     vim.api.nvim_buf_set_name(M.result_bufnr, "qluels://results")
 
     -- Set buffer options
-    vim.api.nvim_set_option_value("buftype", {"nofile"}, { scope = "buffer", buf = M.result_bufnr})
-    vim.api.nvim_set_option_value("swapfile", {false}, { scope = "buffer", buf = M.result_bufnr})
-    vim.api.nvim_set_option_value("filetype", {"qluels-results"}, { scope = "buffer", buf = M.result_bufnr})
-    vim.api.nvim_set_option_value("bufhidden", {"hide"}, { scope = "buffer", buf = M.result_bufnr})
+    vim.api.nvim_set_option_value("buftype", "nofile", { scope = "local", buf = M.result_bufnr})
+    vim.api.nvim_set_option_value("swapfile", false, { scope = "local", buf = M.result_bufnr})
+    vim.api.nvim_set_option_value("filetype", "qluels-results", { scope = "local", buf = M.result_bufnr})
+    vim.api.nvim_set_option_value("bufhidden", "hide", { scope = "local", buf = M.result_bufnr})
   end
 
   -- Create window with split
@@ -88,7 +88,7 @@ M.format_results = function(results)
       -- Calculate column widths
       local widths = {}
       for _, var in ipairs(vars) do
-        widths[var] = #var
+        widths[var] = #var or 0
       end
 
       for _, binding in ipairs(bindings) do
@@ -103,7 +103,7 @@ M.format_results = function(results)
       -- Create header
       local header_parts = {}
       for _, var in ipairs(vars) do
-        table.insert(header_parts, string.format("%-" .. widths[var] .. "s", var))
+        table.insert(header_parts, string.format("%s", var))
       end
       table.insert(lines, "| " .. table.concat(header_parts, " | ") .. " |")
 
@@ -122,7 +122,7 @@ M.format_results = function(results)
           if binding[var] then
             value = binding[var].value or ""
           end
-          table.insert(row_parts, string.format("%-" .. widths[var] .. "s", value))
+          table.insert(row_parts, string.format("%s", value))
         end
         table.insert(lines, "| " .. table.concat(row_parts, " | ") .. " |")
       end
