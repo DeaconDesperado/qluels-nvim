@@ -65,9 +65,9 @@ M.create_result_buffer = function()
   return M.result_bufnr, M.result_winnr
 end
 
----Format query results as a table
+---Format query results in expanded display format (like psql \x)
 ---@param results table Query results from LSP server
----@return string[] lines Formatted table lines
+---@return string[] lines Formatted result lines
 M.format_results = function(results)
   local lines = {}
 
@@ -85,46 +85,63 @@ M.format_results = function(results)
         return lines
       end
 
-      -- Calculate column widths
-      local widths = {}
+      -- Find the longest variable name for alignment
+      local max_var_width = 0
       for _, var in ipairs(vars) do
-        widths[var] = #var or 0
+        max_var_width = math.max(max_var_width, #var + 1) -- +1 for the '?' prefix
       end
 
-      for _, binding in ipairs(bindings) do
+      -- Format each record in expanded display format
+      for i, binding in ipairs(bindings) do
+        -- Record separator line
+        local separator = string.format("-[ RECORD %d ]", i)
+        separator = separator .. string.rep("-", math.max(0, 60 - #separator))
+        table.insert(lines, separator)
+
+        -- Each variable on its own line
         for _, var in ipairs(vars) do
-          if binding[var] then
-            local value = binding[var].value or ""
-            widths[var] = math.max(widths[var], #value)
-          end
-        end
-      end
-
-      -- Create header
-      local header_parts = {}
-      for _, var in ipairs(vars) do
-        table.insert(header_parts, string.format("%s", var))
-      end
-      table.insert(lines, "| " .. table.concat(header_parts, " | ") .. " |")
-
-      -- Create separator
-      local sep_parts = {}
-      for _, var in ipairs(vars) do
-        table.insert(sep_parts, string.rep("-", widths[var]))
-      end
-      table.insert(lines, "| " .. table.concat(sep_parts, " | ") .. " |")
-
-      -- Create rows
-      for _, binding in ipairs(bindings) do
-        local row_parts = {}
-        for _, var in ipairs(vars) do
+          local var_name = "?" .. var
           local value = ""
+
           if binding[var] then
             value = binding[var].value or ""
           end
-          table.insert(row_parts, string.format("%s", value))
+
+          -- Pad variable name to align values
+          local padded_var = string.format("%-" .. max_var_width .. "s", var_name)
+
+          -- Handle long values - wrap if needed
+          local max_line_width = 80
+          local first_line_width = max_line_width - max_var_width - 3 -- 3 for " | "
+
+          if #value <= first_line_width or first_line_width <= 0 then
+            -- Value fits on one line (or no room for wrapping)
+            table.insert(lines, padded_var .. " | " .. value)
+          else
+            -- Need to wrap value across multiple lines
+            local remaining = value
+            local is_first = true
+
+            while #remaining > 0 do
+              local chunk_width = is_first and first_line_width or (max_line_width - max_var_width - 3)
+              if chunk_width <= 0 then
+                chunk_width = max_line_width -- Fallback for very long var names
+              end
+
+              local chunk = remaining:sub(1, chunk_width)
+              remaining = remaining:sub(chunk_width + 1)
+
+              if is_first then
+                table.insert(lines, padded_var .. " | " .. chunk)
+                is_first = false
+              else
+                -- Continuation lines: indent to align with value column
+                local indent = string.rep(" ", max_var_width + 3)
+                table.insert(lines, indent .. chunk)
+              end
+            end
+          end
         end
-        table.insert(lines, "| " .. table.concat(row_parts, " | ") .. " |")
       end
 
       -- Add summary
