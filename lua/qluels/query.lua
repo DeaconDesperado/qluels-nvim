@@ -67,9 +67,11 @@ end
 
 ---Format query results in expanded display format (like psql \x)
 ---@param results table Query results from LSP server
+---@param viewport_width? number Width of the viewport (default: 80)
 ---@return string[] lines Formatted result lines
-M.format_results = function(results)
+M.format_results = function(results, viewport_width)
   local lines = {}
+  viewport_width = viewport_width or 80
 
   -- Handle different result formats
   -- This is a placeholder - actual format depends on what qlue-ls returns
@@ -111,8 +113,8 @@ M.format_results = function(results)
           local padded_var = string.format("%-" .. max_var_width .. "s", var_name)
 
           -- Handle long values - wrap if needed
-          local max_line_width = 80
-          local first_line_width = max_line_width - max_var_width - 3 -- 3 for " | "
+          local first_line_width = viewport_width - max_var_width - 3 -- 3 for " | "
+          local cont_line_width = viewport_width - max_var_width - 3 -- Same for continuation
 
           if #value <= first_line_width or first_line_width <= 0 then
             -- Value fits on one line (or no room for wrapping)
@@ -123,9 +125,9 @@ M.format_results = function(results)
             local is_first = true
 
             while #remaining > 0 do
-              local chunk_width = is_first and first_line_width or (max_line_width - max_var_width - 3)
+              local chunk_width = is_first and first_line_width or cont_line_width
               if chunk_width <= 0 then
-                chunk_width = max_line_width -- Fallback for very long var names
+                chunk_width = viewport_width -- Fallback for very long var names
               end
 
               local chunk = remaining:sub(1, chunk_width)
@@ -135,9 +137,9 @@ M.format_results = function(results)
                 table.insert(lines, padded_var .. " | " .. chunk)
                 is_first = false
               else
-                -- Continuation lines: indent to align with value column
-                local indent = string.rep(" ", max_var_width + 3)
-                table.insert(lines, indent .. chunk)
+                -- Continuation lines: indent to align with value column and include separator
+                local indent = string.rep(" ", max_var_width)
+                table.insert(lines, indent .. " | " .. chunk)
               end
             end
           end
@@ -165,8 +167,14 @@ end
 M.display_results = function(results)
   local bufnr, winnr = M.create_result_buffer()
 
-  -- Format results
-  local lines = M.format_results(results)
+  -- Get viewport width from the window
+  local viewport_width = 80 -- default
+  if winnr and vim.api.nvim_win_is_valid(winnr) then
+    viewport_width = vim.api.nvim_win_get_width(winnr)
+  end
+
+  -- Format results with viewport width
+  local lines = M.format_results(results, viewport_width)
 
   -- Set buffer content
   vim.api.nvim_buf_set_option(bufnr, "modifiable", true)
