@@ -2,9 +2,9 @@ local constants = require("qluels.constants");
 ---LSP integration for qlue-ls custom actions
 local M = {}
 
----Get the qlue_ls client for the current buffer
+---Get the qlue-ls client for the current buffer
 ---@param bufnr? number Buffer number (0 or nil for current)
----@return table? client The qlue_ls LSP client, or nil if not found
+---@return table? client The qlue-ls LSP client, or nil if not found
 M.get_client = function(bufnr)
   bufnr = bufnr or 0
   if bufnr == 0 then
@@ -19,7 +19,7 @@ M.get_client = function(bufnr)
   return nil
 end
 
----Check if qlue_ls is attached to the current buffer
+---Check if qlue-ls is attached to the current buffer
 ---@param bufnr? number Buffer number (0 or nil for current)
 ---@return boolean attached
 M.is_attached = function(bufnr)
@@ -36,7 +36,7 @@ M.add_backend = function(params, bufnr)
 
   local client = M.get_client(bufnr)
   if not client then
-    vim.notify("qlue_ls is not attached to this buffer", vim.log.levels.ERROR)
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 
@@ -55,7 +55,7 @@ M.update_default_backend = function(backend_name, bufnr)
 
   local client = M.get_client(bufnr)
   if not client then
-    vim.notify("qlue_ls is not attached to this buffer", vim.log.levels.ERROR)
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 
@@ -79,7 +79,7 @@ M.ping_backend = function(backend_name, callback, bufnr)
 
   local client = M.get_client(bufnr)
   if not client then
-    vim.notify("qlue_ls is not attached to this buffer", vim.log.levels.ERROR)
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 
@@ -109,7 +109,7 @@ M.change_settings = function(settings, bufnr)
 
   local client = M.get_client(bufnr)
   if not client then
-    vim.notify("qlue_ls is not attached to this buffer", vim.log.levels.ERROR)
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 
@@ -130,7 +130,7 @@ M.get_default_settings = function(callback, bufnr)
 
   local client = M.get_client(bufnr)
   if not client then
-    vim.notify("qlue_ls is not attached to this buffer", vim.log.levels.ERROR)
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 
@@ -160,7 +160,7 @@ M.execute_query = function(query, backend_name, callback, bufnr)
 
   local client = M.get_client(bufnr)
   if not client then
-    vim.notify("qlue_ls is not attached to this buffer", vim.log.levels.ERROR)
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 

@@ -1,5 +1,6 @@
 ---Health check for qluels plugin
 ---Use with :checkhealth qluels
+local constants = require("qluels.constants")
 local M = {}
 
 ---Check if the plugin is properly set up
@@ -81,13 +82,13 @@ end
 
 ---Check LSP attachment
 local function check_lsp()
-  local clients = vim.lsp.get_clients({ name = "qlue_ls" })
+  local clients = vim.lsp.get_clients({ name = constants.QLUE_IDENTITY })
 
   if #clients > 0 then
-    vim.health.ok(string.format("qlue_ls LSP client active (%d instance(s))", #clients))
+    vim.health.ok(string.format("%s LSP client active (%d instance(s))", constants.QLUE_IDENTITY, #clients))
   else
     vim.health.info(
-      "qlue_ls LSP client not currently attached",
+      string.format("%s LSP client not currently attached", constants.QLUE_IDENTITY),
       { "Open a SPARQL file to trigger LSP attachment", "Or manually start the LSP client" }
     )
   end
