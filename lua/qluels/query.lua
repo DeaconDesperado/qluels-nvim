@@ -69,8 +69,10 @@ end
 ---@param results table Query results from LSP server
 ---@param viewport_width? number Width of the viewport (default: 80)
 ---@return string[] lines Formatted result lines
+---@return table highlights List of highlight entries {line, col_start, col_end, hl_group}
 M.format_results = function(results, viewport_width)
   local lines = {}
+  local highlights = {}
   viewport_width = viewport_width or 80
 
   if type(results) == "table" then
@@ -82,7 +84,7 @@ M.format_results = function(results, viewport_width)
 
       if #vars == 0 then
         table.insert(lines, "No variables in result set")
-        return lines
+        return lines, highlights
       end
 
       -- Find the longest variable name for alignment
@@ -99,13 +101,16 @@ M.format_results = function(results, viewport_width)
         table.insert(lines, separator)
 
         -- Each variable on its own line
-        for _, var in ipairs(vars) do
+        for var_idx, var in ipairs(vars) do
           local var_name = "?" .. var
           local value = ""
 
           if binding[var] then
             value = binding[var].value or ""
           end
+
+          -- Determine highlight group (cycle through available groups)
+          local hl_group = "QluelsVar" .. ((var_idx - 1) % 8 + 1)
 
           -- Pad variable name to align values
           local padded_var = string.format("%-" .. max_var_width .. "s", var_name)
@@ -116,7 +121,15 @@ M.format_results = function(results, viewport_width)
 
           if #value <= first_line_width or first_line_width <= 0 then
             -- Value fits on one line (or no room for wrapping)
-            table.insert(lines, padded_var .. " | " .. value)
+            local line = padded_var .. " | " .. value
+            table.insert(lines, line)
+            -- Highlight entire line
+            table.insert(highlights, {
+              line = #lines - 1,
+              col_start = 0,
+              col_end = #line,
+              hl_group = hl_group
+            })
           else
             -- Need to wrap value across multiple lines
             local remaining = value
@@ -132,12 +145,28 @@ M.format_results = function(results, viewport_width)
               remaining = remaining:sub(chunk_width + 1)
 
               if is_first then
-                table.insert(lines, padded_var .. " | " .. chunk)
+                local line = padded_var .. " | " .. chunk
+                table.insert(lines, line)
+                -- Highlight entire line
+                table.insert(highlights, {
+                  line = #lines - 1,
+                  col_start = 0,
+                  col_end = #line,
+                  hl_group = hl_group
+                })
                 is_first = false
               else
                 -- Continuation lines: indent to align with value column and include separator
                 local indent = string.rep(" ", max_var_width)
-                table.insert(lines, indent .. " | " .. chunk)
+                local line = indent .. " | " .. chunk
+                table.insert(lines, line)
+                -- Highlight entire continuation line
+                table.insert(highlights, {
+                  line = #lines - 1,
+                  col_start = 0,
+                  col_end = #line,
+                  hl_group = hl_group
+                })
               end
             end
           end
@@ -157,7 +186,7 @@ M.format_results = function(results, viewport_width)
     table.insert(lines, tostring(results))
   end
 
-  return lines
+  return lines, highlights
 end
 
 ---Display results in the result buffer
@@ -171,13 +200,86 @@ M.display_results = function(results)
     viewport_width = vim.api.nvim_win_get_width(winnr)
   end
 
+  local highlight_groups = {
+    "Identifier",
+    "Statement",
+    "Type",
+    "Function",
+    "Constant",
+    "ErrorMsg",
+    "Special",
+  }
+
+  for i, group in ipairs(highlight_groups) do
+    vim.api.nvim_set_hl(0, "QluelsVar" .. i, { link = group })
+  end
+
   -- Format results with viewport width
-  local lines = M.format_results(results, viewport_width)
+  local lines, highlights = M.format_results(results, viewport_width)
 
   -- Set buffer content
-
   vim.api.nvim_set_option_value("modifiable", true, { scope = "local", buf = bufnr})
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+
+  -- Apply highlights
+  local ns_id = vim.api.nvim_create_namespace("qluels_results")
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+
+  for _, hl in ipairs(highlights) do
+    vim.api.nvim_buf_set_extmark(
+      bufnr,
+      ns_id,
+      hl.line,
+      hl.col_start,
+      {end_col = hl.col_end, hl_group = hl.hl_group}
+    )
+  end
+
+  -- Debug: Add a command to inspect highlights
+  vim.api.nvim_buf_create_user_command(bufnr, "QluelsDebugHighlights", function()
+    print("=== Qluels Highlight Debug ===")
+    print(string.format("Buffer: %d", bufnr))
+    print(string.format("Namespace ID: %d", ns_id))
+    print(string.format("Number of highlights applied: %d", #highlights))
+
+    -- Check buffer settings
+    local ft = vim.api.nvim_get_option_value("filetype", {buf = bufnr})
+    local syntax = vim.api.nvim_get_option_value("syntax", {buf = bufnr})
+    print(string.format("Buffer filetype: %s", ft))
+    print(string.format("Buffer syntax: %s", syntax))
+
+    -- Check if highlight groups exist and what they resolve to
+    for i = 1, 8 do
+      local hl_name = "QluelsVar" .. i
+      local hl_def = vim.api.nvim_get_hl(0, {name = hl_name, link = false})
+      local hl_def_with_link = vim.api.nvim_get_hl(0, {name = hl_name})
+      if next(hl_def) then
+        print(string.format("✓ %s resolves to: %s", hl_name, vim.inspect(hl_def)))
+      elseif next(hl_def_with_link) then
+        print(string.format("✓ %s linked: %s", hl_name, vim.inspect(hl_def_with_link)))
+      else
+        print(string.format("✗ %s NOT defined", hl_name))
+      end
+    end
+
+    -- Check extmarks in buffer
+    local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, {details = true})
+    print(string.format("\nExtmarks in buffer: %d", #extmarks))
+    if #extmarks > 0 then
+      for i, extmark in ipairs(extmarks) do
+        local id, row, col, details = extmark[1], extmark[2], extmark[3], extmark[4]
+        print(string.format("  [%d] row=%d, col=%d-%d, hl_group=%s",
+          id, row, col, details.end_col or -1, details.hl_group or "none"))
+        if i >= 5 then
+          print(string.format("  ... and %d more", #extmarks - 5))
+          break
+        end
+      end
+    else
+      print("  No extmarks found!")
+    end
+  end, {})
+
   vim.api.nvim_set_option_value("modifiable", false, { scope = "local", buf = bufnr})
   vim.api.nvim_set_option_value("modified", false, { scope = "local", buf = bufnr})
   vim.keymap.set("n", "q", "<cmd>quit<CR>", {buffer = bufnr, silent = true});
