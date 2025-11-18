@@ -11,35 +11,36 @@ local config = require("qluels.config")
 local lsp = require("qluels.lsp")
 local query = require("qluels.query")
 
-local default_capabilities = vim.lsp.protocol.make_client_capabilities();
-
 ---Setup the plugin
 ---@param opts? QluelsConfig User configuration
 M.setup = function(opts)
   opts = opts or {}
-
-  vim.lsp.config ("qlue-ls", {
-    name = constants.QLUE_IDENTITY,
-    filetypes = opts.server.filetypes,
-    cmd = { 'qlue-ls', 'server' },
-    capabilities = vim.tbl_deep_extend(
-      "force",
-      default_capabilities,
-      opts.server.capabilities or {}
-    ),
-    root_dir = vim.fn.getcwd(),
-    on_attach = function(client, bufnr)
-      vim.keymap.set('n', '<leader>f', vim.lsp.buf.format, { buffer = bufnr, desc = 'LSP: ' .. '[F]ormat' })
-    end,
-  })
-
-  vim.lsp.enable({constants.QLUE_IDENTITY})
 
   -- Setup configuration
   local success, err = config.setup(opts)
   if not success then
     vim.notify("Qluels setup failed: " .. err, vim.log.levels.ERROR)
     return
+  end
+
+  local default_capabilities = vim.lsp.protocol.make_client_capabilities();
+  local default_on_attach = vim.lsp.handlers.default_on_attach
+
+  if opts.auto_attach then
+    vim.lsp.config ("qlue-ls", {
+      name = constants.QLUE_IDENTITY,
+      filetypes = opts.server.filetypes,
+      cmd = { 'qlue-ls', 'server' },
+      capabilities = vim.tbl_deep_extend(
+        "force",
+        default_capabilities,
+        opts.server.capabilities or {}
+      ),
+      root_dir = vim.fn.getcwd(),
+      on_attach = opts.on_attach or default_on_attach
+    })
+
+    vim.lsp.enable({constants.QLUE_IDENTITY})
   end
 
   -- Store a flag that we've been set up

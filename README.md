@@ -1,15 +1,13 @@
 # qluels-nvim
 
-Enhanced Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL language server.
+Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL language server.
 
 ## Features
 
 - **Custom LSP Actions**: Support for qlue-ls custom LSP actions like `addBackend`, `updateDefaultBackend`, `pingBackend`, etc.
 - **Query Execution**: Execute SPARQL queries from buffers with formatted table results
 - **Backend Management**: Configure and manage multiple SPARQL endpoints
-- **Fast Development**: Hot-reload support for rapid iteration
 - **Health Checks**: Integrated `:checkhealth` support
-- **Well-Tested**: Comprehensive test suite using plenary.nvim
 
 ## Requirements
 
@@ -26,6 +24,7 @@ Enhanced Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls
   "yourusername/qluels-nvim",
   config = function()
     require("qluels").setup({
+      auto_attach = true,
       backends = {
         wikidata = {
           service = {
@@ -51,23 +50,12 @@ use {
 }
 ```
 
-### Local Development
-
-```lua
-{
-  dir = "~/projects/foss/mgii/qluels-nvim",
-  name = "qluels-nvim",
-  config = function()
-    require("qluels").setup()
-  end,
-}
-```
-
 ## Configuration
 
 ```lua
 require("qluels").setup({
   -- Pre-configured SPARQL backends
+  auto_attach = true,
   backends = {
     wikidata = {
       service = {
@@ -104,17 +92,6 @@ require("qluels").setup({
 
 ### Backend Configuration
 
-Each backend must have:
-- `service.name` (string): Unique identifier for the backend
-- `service.url` (string): SPARQL endpoint URL
-
-Optional fields:
-- `service.healthCheckUrl` (string): URL for health checks
-- `requestMethod` ("GET"|"POST"): HTTP method for queries
-- `default` (boolean): Whether this is the default backend
-- `prefixMap` (table): Prefix to URI mappings
-- `queries` (table): Custom completion query templates
-
 ## Commands
 
 | Command | Description |
@@ -122,8 +99,8 @@ Optional fields:
 | `:QluelsAddBackend {json}` | Add a SPARQL backend |
 | `:QluelsSetDefaultBackend {name}` | Set the default backend |
 | `:QLuelsPingBackend [{name}]` | Check backend availability |
-| `:QluelsExecuteQuery [{backend}]` | Execute buffer as SPARQL query |
-| `:QluelsExecuteSelection [{backend}]` | Execute visual selection as query |
+| `:QluelsExecuteQuery [{backend}]` | Execute buffer as SPARQL query. Omit backend for default backend |
+| `:QluelsExecuteSelection [{backend}]` | Execute visual selection as query. Omit backend for default backend |
 | `:QluelsCloseResults` | Close the results window |
 | `:QluelsGetDefaultSettings` | Get qlue-ls default settings |
 | `:QluelsReload` | Reload the plugin (development) |
@@ -146,50 +123,6 @@ Optional fields:
 " Execute visual selection
 :'<,'>QluelsExecuteSelection wikidata
 ```
-
-## Lua API
-
-For programmatic access:
-
-```lua
-local qluels = require("qluels")
-
--- Add a backend
-qluels.lsp.add_backend({
-  service = {
-    name = "mybackend",
-    url = "http://localhost:3030/dataset/query",
-  },
-  default = true,
-})
-
--- Update default backend
-qluels.lsp.update_default_backend("mybackend")
-
--- Ping a backend
-qluels.lsp.ping_backend("mybackend", function(available, err)
-  if available then
-    print("Backend is available!")
-  else
-    print("Backend error: " .. err)
-  end
-end)
-
--- Execute a query from current buffer
--- The query is read from the buffer by the server
-qluels.lsp.execute_query(
-  function(result, err)
-    if result then
-      print(vim.inspect(result))
-    end
-  end
-  -- Optional: bufnr, max_result_size, result_offset
-)
-
--- Execute buffer query
-qluels.query.execute_buffer_query("mybackend")
-```
-
 ## Development
 
 ### Hot Reloading
@@ -198,12 +131,6 @@ For fast iteration during development, use `:QluelsReload` to reload the plugin 
 
 ```vim
 :QluelsReload
-```
-
-Or create a keybinding:
-
-```lua
-vim.keymap.set("n", "<leader>qr", "<cmd>QluelsReload<cr>", { desc = "Reload Qluels plugin" })
 ```
 
 ### Running Tests
@@ -236,24 +163,6 @@ This will check:
 - Configured backends
 - LSP client attachment
 - Dependencies
-
-## Project Structure
-
-```
-qluels-nvim/
-├── lua/qluels/
-│   ├── init.lua          # Main module with setup()
-│   ├── config.lua        # Configuration management
-│   ├── lsp.lua           # LSP custom actions
-│   ├── query.lua         # Query execution & display
-│   └── health.lua        # Health check
-├── plugin/qluels.lua     # Vim commands
-├── tests/
-│   ├── minimal_init.lua  # Test configuration
-│   └── qluels/           # Test specs
-├── doc/qluels.txt        # Vim help documentation
-└── README.md
-```
 
 ## Related Projects
 

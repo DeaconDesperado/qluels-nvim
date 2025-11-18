@@ -7,6 +7,7 @@
 ---@class QluelsServer
 ---@field capabilities? table|nil The client capabilities. 
 ---@field filetypes? table The filetypes to activate for by default 
+---@field on_attach fun(client: vim.lsp.Client, bufnr: number) | nil The function executed when the LSP client attaches to a buffer.
 
 ---@class QluelsBackend
 ---@field service QluelsService Service configuration
@@ -30,6 +31,7 @@ local M = {}
 M.defaults = {
   server = {
     capabilities = vim.lsp.protocol.make_client_capabilities(),
+    on_attach = vim.lsp.handlers.default_on_attach,
     filetypes = {"sparql"},
   },
   backends = {},
