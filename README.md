@@ -21,7 +21,7 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 
 ```lua
 {
-  "yourusername/qluels-nvim",
+  "DeaconDesperado/qluels-nvim",
   config = function()
     require("qluels").setup({
       auto_attach = true,
@@ -43,7 +43,7 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 
 ```lua
 use {
-  "yourusername/qluels-nvim",
+  "DeaconDesperado/qluels-nvim",
   config = function()
     require("qluels").setup()
   end,
