@@ -37,7 +37,7 @@ M.setup = function(opts)
         opts.server.capabilities or {}
       ),
       root_dir = vim.fn.getcwd(),
-      on_attach = opts.on_attach or default_on_attach
+      on_attach = opts.server.on_attach or default_on_attach
     })
 
     vim.lsp.enable({constants.QLUE_IDENTITY})
