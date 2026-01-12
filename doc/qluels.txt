@@ -19,7 +19,7 @@ CONTENTS                                                    *qluels-contents*
 Qluels is a Neovim plugin that enhances integration with the qlue-ls SPARQL
 language server. It provides:
 
-- Custom LSP actions (addBackend, updateDefaultBackend, etc.)
+- Custom LSP actions (addBackend, updateBackend, etc.)
 - SPARQL query execution with formatted result display
 - Backend management
 - Fast development iteration with hot-reloading
@@ -135,11 +135,11 @@ Optional fields:
         :QluelsAddBackend {"service": {"name": "dbpedia", "url": "https://dbpedia.org/sparql"}, "default": true}
 <
 
-*:QluelsSetDefaultBackend* {name}
-    Set the default SPARQL backend.
+*:QluelsSetBackend* {name}
+    Set the active SPARQL backend.
 
     Example: >vim
-        :QluelsSetDefaultBackend wikidata
+        :QluelsSetBackend wikidata
 <
 
 *:QLuelsPingBackend* [{name}]

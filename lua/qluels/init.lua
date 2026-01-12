@@ -1,7 +1,7 @@
 ---Qluels: Neovim plugin for qlue-ls SPARQL language server
 ---
 ---Provides enhanced integration with qlue-ls, including:
---- - Custom LSP actions (addBackend, updateDefaultBackend, etc.)
+--- - Custom LSP actions (addBackend, updateBackend, etc.)
 --- - SPARQL query execution with formatted results
 --- - Backend management
 local M = {}

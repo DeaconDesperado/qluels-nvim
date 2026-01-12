@@ -4,7 +4,7 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 
 ## Features
 
-- **Custom LSP Actions**: Support for qlue-ls custom LSP actions like `addBackend`, `updateDefaultBackend`, `pingBackend`, etc.
+- **Custom LSP Actions**: Support for qlue-ls custom LSP actions like `addBackend`, `updateBackend`, `pingBackend`, etc.
 - **Query Execution**: Execute SPARQL queries from buffers with formatted table results
 - **Backend Management**: Configure and manage multiple SPARQL endpoints
 - **Health Checks**: Integrated `:checkhealth` support
@@ -97,7 +97,7 @@ require("qluels").setup({
 | Command | Description |
 |---------|-------------|
 | `:QluelsAddBackend {json}` | Add a SPARQL backend |
-| `:QluelsSetDefaultBackend {name}` | Set the default backend |
+| `:QluelsSetBackend {name}` | Set the default backend |
 | `:QLuelsPingBackend [{name}]` | Check backend availability |
 | `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query.|
 | `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query. |
@@ -112,7 +112,7 @@ require("qluels").setup({
 :QluelsAddBackend {"service": {"name": "dbpedia", "url": "https://dbpedia.org/sparql"}, "default": true}
 
 " Set default backend
-:QluelsSetDefaultBackend wikidata
+:QluelsSetBackend wikidata
 
 " Ping a backend
 :QLuelsPingBackend wikidata

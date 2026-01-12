@@ -28,8 +28,7 @@ end, {
 })
 
 ---Set the default backend
----Usage: :QluelsSetDefaultBackend wikidata
-vim.api.nvim_create_user_command("QluelsSetDefaultBackend", function(opts)
+vim.api.nvim_create_user_command("QluelsSetBackend", function(opts)
   local backend_name = opts.args
 
   if backend_name == "" then
