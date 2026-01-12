@@ -73,14 +73,15 @@ end
 M.format_results = function(results, viewport_width)
   local lines = {}
   local highlights = {}
+  local queryResults = results.queryResult
   viewport_width = viewport_width or 80
 
-  if type(results) == "table" then
+  if type(queryResults) == "table" then
     -- Check if it's a SPARQL results format
-    if results.head and results.results then
+    if queryResults.result.head and queryResults.result.results then
       -- Standard SPARQL JSON results format
-      local vars = results.head.vars or {}
-      local bindings = results.results.bindings or {}
+      local vars = queryResults.result.head.vars or {}
+      local bindings = queryResults.result.results.bindings or {}
 
       if #vars == 0 then
         table.insert(lines, "No variables in result set")
@@ -115,37 +116,35 @@ M.format_results = function(results, viewport_width)
           -- Pad variable name to align values
           local padded_var = string.format("%-" .. max_var_width .. "s", var_name)
 
+          -- Split value by newlines first to handle embedded newlines
+          -- Normalize line endings to \n, then split
+          local normalized = value:gsub("\r\n", "\n"):gsub("\r", "\n")
+          local value_lines = {}
+
+          -- Split on newlines
+          local start_idx = 1
+          while true do
+            local newline_idx = normalized:find("\n", start_idx, true)
+            if newline_idx then
+              table.insert(value_lines, normalized:sub(start_idx, newline_idx - 1))
+              start_idx = newline_idx + 1
+            else
+              -- Last line (or only line if no newlines)
+              table.insert(value_lines, normalized:sub(start_idx))
+              break
+            end
+          end
+
           -- Handle long values - wrap if needed
           local first_line_width = viewport_width - max_var_width - 3 -- 3 for " | "
           local cont_line_width = viewport_width - max_var_width - 3  -- Same for continuation
 
-          if #value <= first_line_width or first_line_width <= 0 then
-            -- Value fits on one line (or no room for wrapping)
-            local line = padded_var .. " | " .. value
-            table.insert(lines, line)
-            -- Highlight entire line
-            table.insert(highlights, {
-              line = #lines - 1,
-              col_start = 0,
-              col_end = #line,
-              hl_group = hl_group
-            })
-          else
-            -- Need to wrap value across multiple lines
-            local remaining = value
-            local is_first = true
-
-            while #remaining > 0 do
-              local chunk_width = is_first and first_line_width or cont_line_width
-              if chunk_width <= 0 then
-                chunk_width = viewport_width -- Fallback for very long var names
-              end
-
-              local chunk = remaining:sub(1, chunk_width)
-              remaining = remaining:sub(chunk_width + 1)
-
+          local is_first = true
+          for _, value_line in ipairs(value_lines) do
+            if #value_line <= first_line_width or first_line_width <= 0 then
+              -- Value line fits (or no room for wrapping)
               if is_first then
-                local line = padded_var .. " | " .. chunk
+                local line = padded_var .. " | " .. value_line
                 table.insert(lines, line)
                 -- Highlight entire line
                 table.insert(highlights, {
@@ -158,7 +157,7 @@ M.format_results = function(results, viewport_width)
               else
                 -- Continuation lines: indent to align with value column and include separator
                 local indent = string.rep(" ", max_var_width)
-                local line = indent .. " | " .. chunk
+                local line = indent .. " | " .. value_line
                 table.insert(lines, line)
                 -- Highlight entire continuation line
                 table.insert(highlights, {
@@ -167,6 +166,44 @@ M.format_results = function(results, viewport_width)
                   col_end = #line,
                   hl_group = hl_group
                 })
+              end
+            else
+              -- Need to wrap value line across multiple lines
+              local remaining = value_line
+
+              while #remaining > 0 do
+                local chunk_width = is_first and first_line_width or cont_line_width
+                if chunk_width <= 0 then
+                  chunk_width = viewport_width -- Fallback for very long var names
+                end
+
+                local chunk = remaining:sub(1, chunk_width)
+                remaining = remaining:sub(chunk_width + 1)
+
+                if is_first then
+                  local line = padded_var .. " | " .. chunk
+                  table.insert(lines, line)
+                  -- Highlight entire line
+                  table.insert(highlights, {
+                    line = #lines - 1,
+                    col_start = 0,
+                    col_end = #line,
+                    hl_group = hl_group
+                  })
+                  is_first = false
+                else
+                  -- Continuation lines: indent to align with value column and include separator
+                  local indent = string.rep(" ", max_var_width)
+                  local line = indent .. " | " .. chunk
+                  table.insert(lines, line)
+                  -- Highlight entire continuation line
+                  table.insert(highlights, {
+                    line = #lines - 1,
+                    col_start = 0,
+                    col_end = #line,
+                    hl_group = hl_group
+                  })
+                end
               end
             end
           end
@@ -217,22 +254,39 @@ M.display_results = function(results)
   -- Format results with viewport width
   local lines, highlights = M.format_results(results, viewport_width)
 
+  -- Ensure no line contains newlines (flatten any that slipped through)
+  -- and track line mapping for highlights
+  local sanitized_lines = {}
+  local line_mapping = {} -- maps old line index to new line index
+  for old_idx, line in ipairs(lines) do
+    line_mapping[old_idx - 1] = #sanitized_lines -- 0-indexed for highlights
+    -- Split any remaining newlines in this line
+    for subline in (line .. "\n"):gmatch("([^\r\n]*)\n") do
+      if subline ~= "" or #sanitized_lines == 0 then
+        table.insert(sanitized_lines, subline)
+      end
+    end
+  end
+
   -- Set buffer content
   vim.api.nvim_set_option_value("modifiable", true, { scope = "local", buf = bufnr })
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, sanitized_lines)
 
-  -- Apply highlights
+  -- Apply highlights with adjusted line numbers
   local ns_id = vim.api.nvim_create_namespace("qluels_results")
   vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
   for _, hl in ipairs(highlights) do
-    vim.api.nvim_buf_set_extmark(
-      bufnr,
-      ns_id,
-      hl.line,
-      hl.col_start,
-      { end_col = hl.col_end, hl_group = hl.hl_group }
-    )
+    local new_line = line_mapping[hl.line]
+    if new_line and new_line < #sanitized_lines then
+      vim.api.nvim_buf_set_extmark(
+        bufnr,
+        ns_id,
+        new_line,
+        hl.col_start,
+        { end_col = hl.col_end, hl_group = hl.hl_group }
+      )
+    end
   end
 
   -- Debug: Add a command to inspect highlights
