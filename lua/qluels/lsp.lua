@@ -146,14 +146,15 @@ M.get_default_settings = function(callback, bufnr)
 end
 
 ---Execute a SPARQL query against a backend
----Sends a qlueLs/executeQuery request
+---Sends a qlueLs/executeOperation request
 ---The query is read from the current buffer contents
 ---@param callback fun(result?: table, err?: string) Callback with query results
 ---@param bufnr? number Buffer number (0 or nil for current)
 ---@param max_result_size? number Maximum number of results to return
 ---@param result_offset? number Offset for result pagination
+---@param access_token? string Access token to be forwarded to the backend 
 ---@return boolean success Whether the request was sent
-M.execute_query = function(callback, bufnr, max_result_size, result_offset)
+M.execute_operation = function(callback, bufnr, max_result_size, result_offset, access_token)
   bufnr = bufnr or 0
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
@@ -180,7 +181,11 @@ M.execute_query = function(callback, bufnr, max_result_size, result_offset)
     params.resultOffset = result_offset
   end
 
-  client:request("qlueLs/executeQuery", params, function(err, result)
+  if access_token then
+    params.accessToken = access_token
+  end
+
+  client:request("qlueLs/executeOperation", params, function(err, result)
     if err then
       callback(nil, err.message or "Unknown error")
     else

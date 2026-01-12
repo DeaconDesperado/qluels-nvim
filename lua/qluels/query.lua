@@ -28,10 +28,10 @@ M.create_result_buffer = function()
     vim.api.nvim_buf_set_name(M.result_bufnr, "qluels://results")
 
     -- Set buffer options
-    vim.api.nvim_set_option_value("buftype", "nofile", { scope = "local", buf = M.result_bufnr})
-    vim.api.nvim_set_option_value("swapfile", false, { scope = "local", buf = M.result_bufnr})
-    vim.api.nvim_set_option_value("filetype", "qluels-results", { scope = "local", buf = M.result_bufnr})
-    vim.api.nvim_set_option_value("bufhidden", "hide", { scope = "local", buf = M.result_bufnr})
+    vim.api.nvim_set_option_value("buftype", "nofile", { scope = "local", buf = M.result_bufnr })
+    vim.api.nvim_set_option_value("swapfile", false, { scope = "local", buf = M.result_bufnr })
+    vim.api.nvim_set_option_value("filetype", "qluels-results", { scope = "local", buf = M.result_bufnr })
+    vim.api.nvim_set_option_value("bufhidden", "hide", { scope = "local", buf = M.result_bufnr })
   end
 
   -- Create window with split
@@ -117,7 +117,7 @@ M.format_results = function(results, viewport_width)
 
           -- Handle long values - wrap if needed
           local first_line_width = viewport_width - max_var_width - 3 -- 3 for " | "
-          local cont_line_width = viewport_width - max_var_width - 3 -- Same for continuation
+          local cont_line_width = viewport_width - max_var_width - 3  -- Same for continuation
 
           if #value <= first_line_width or first_line_width <= 0 then
             -- Value fits on one line (or no room for wrapping)
@@ -218,7 +218,7 @@ M.display_results = function(results)
   local lines, highlights = M.format_results(results, viewport_width)
 
   -- Set buffer content
-  vim.api.nvim_set_option_value("modifiable", true, { scope = "local", buf = bufnr})
+  vim.api.nvim_set_option_value("modifiable", true, { scope = "local", buf = bufnr })
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
   -- Apply highlights
@@ -231,7 +231,7 @@ M.display_results = function(results)
       ns_id,
       hl.line,
       hl.col_start,
-      {end_col = hl.col_end, hl_group = hl.hl_group}
+      { end_col = hl.col_end, hl_group = hl.hl_group }
     )
   end
 
@@ -243,16 +243,16 @@ M.display_results = function(results)
     print(string.format("Number of highlights applied: %d", #highlights))
 
     -- Check buffer settings
-    local ft = vim.api.nvim_get_option_value("filetype", {buf = bufnr})
-    local syntax = vim.api.nvim_get_option_value("syntax", {buf = bufnr})
+    local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+    local syntax = vim.api.nvim_get_option_value("syntax", { buf = bufnr })
     print(string.format("Buffer filetype: %s", ft))
     print(string.format("Buffer syntax: %s", syntax))
 
     -- Check if highlight groups exist and what they resolve to
     for i = 1, 8 do
       local hl_name = "QluelsVar" .. i
-      local hl_def = vim.api.nvim_get_hl(0, {name = hl_name, link = false})
-      local hl_def_with_link = vim.api.nvim_get_hl(0, {name = hl_name})
+      local hl_def = vim.api.nvim_get_hl(0, { name = hl_name, link = false })
+      local hl_def_with_link = vim.api.nvim_get_hl(0, { name = hl_name })
       if next(hl_def) then
         print(string.format("✓ %s resolves to: %s", hl_name, vim.inspect(hl_def)))
       elseif next(hl_def_with_link) then
@@ -263,7 +263,7 @@ M.display_results = function(results)
     end
 
     -- Check extmarks in buffer
-    local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, {details = true})
+    local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
     print(string.format("\nExtmarks in buffer: %d", #extmarks))
     if #extmarks > 0 then
       for i, extmark in ipairs(extmarks) do
@@ -280,15 +280,15 @@ M.display_results = function(results)
     end
   end, {})
 
-  vim.api.nvim_set_option_value("modifiable", false, { scope = "local", buf = bufnr})
-  vim.api.nvim_set_option_value("modified", false, { scope = "local", buf = bufnr})
-  vim.keymap.set("n", "q", "<cmd>quit<CR>", {buffer = bufnr, silent = true});
+  vim.api.nvim_set_option_value("modifiable", false, { scope = "local", buf = bufnr })
+  vim.api.nvim_set_option_value("modified", false, { scope = "local", buf = bufnr })
+  vim.keymap.set("n", "q", "<cmd>quit<CR>", { buffer = bufnr, silent = true });
 end
 
 ---Execute the SPARQL query in the current buffer
----@param backend_name? string Backend name (nil for default)
+---@param access_token? string Backend name (nil for default)
 ---@param bufnr? number Source buffer number (0 or nil for current)
-M.execute_buffer_query = function(backend_name, bufnr)
+M.execute_buffer_query = function(access_token, bufnr)
   bufnr = bufnr or 0
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
@@ -306,7 +306,7 @@ M.execute_buffer_query = function(backend_name, bufnr)
   vim.notify("Executing query...", vim.log.levels.INFO)
 
   -- Server reads query from the text document itself
-  lsp.execute_query(function(result, err)
+  lsp.execute_operation(function(result, err)
     if err then
       vim.notify("Query execution failed: " .. err, vim.log.levels.ERROR)
       return
@@ -344,10 +344,10 @@ M.execute_visual_query = function(backend_name)
   -- Create a temporary scratch buffer with the selected query
   local temp_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(temp_buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(temp_buf, 'filetype', 'sparql')
+  vim.api.nvim_set_option_value('filetype', 'sparql', { buf = temp_buf })
 
   -- Execute query from the temporary buffer
-  lsp.execute_query(function(result, err)
+  lsp.execute_operation(function(result, err)
     -- Clean up temporary buffer
     vim.api.nvim_buf_delete(temp_buf, { force = true })
 

@@ -150,19 +150,23 @@ Optional fields:
         :QLuelsPingBackend wikidata
 <
 
-*:QluelsExecuteQuery* [{backend}]
-    Execute the entire current buffer as a SPARQL query. If a backend name
-    is provided, uses that backend; otherwise uses the default.
+*:QluelsExecute [{accessToken}]
+    Execute the entire current buffer as a SPARQL query against the currently active backend. 
+    If an access token is provided, it will be forwarded as the Authorization header for the
+    query 
 
     Example: >vim
-        :QluelsExecuteQuery wikidata
+        :QluelsExecute abcxyz 
 <
 
-*:QluelsExecuteSelection* [{backend}]
-    Execute the current visual selection as a SPARQL query.
+*:QluelsExecuteSelection* [{accessToken}]
+    Execute the current visual selection as a SPARQL query against the currently active backend.  
+    If an access token is provided, it will be forwarded as the Authorization header for the
+    query 
+
 
     Example: >vim
-        :'<,'>QluelsExecuteSelection
+        :'<,'>QluelsExecuteSelection abcxyz
 <
 
 *:QluelsCloseResults*

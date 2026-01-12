@@ -70,12 +70,12 @@ end, {
 })
 
 ---Execute the current buffer as a SPARQL query
----Usage: :QluelsExecuteQuery [backend_name]
-vim.api.nvim_create_user_command("QluelsExecuteQuery", function(opts)
-  local backend_name = opts.args ~= "" and opts.args or nil
+---Usage: :QluelsExecute [access_token]
+vim.api.nvim_create_user_command("QluelsExecute", function(opts)
+  local access_token = opts.args ~= "" and opts.args or nil
 
   local query = require("qluels.query")
-  query.execute_buffer_query(backend_name)
+  query.execute_buffer_query(access_token)
 end, {
   nargs = "?",
   desc = "Execute the current buffer as a SPARQL query",

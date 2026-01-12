@@ -99,8 +99,8 @@ require("qluels").setup({
 | `:QluelsAddBackend {json}` | Add a SPARQL backend |
 | `:QluelsSetDefaultBackend {name}` | Set the default backend |
 | `:QLuelsPingBackend [{name}]` | Check backend availability |
-| `:QluelsExecuteQuery [{backend}]` | Execute buffer as SPARQL query. Omit backend for default backend |
-| `:QluelsExecuteSelection [{backend}]` | Execute visual selection as query. Omit backend for default backend |
+| `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query.|
+| `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query. |
 | `:QluelsCloseResults` | Close the results window |
 | `:QluelsGetDefaultSettings` | Get qlue-ls default settings |
 | `:QluelsReload` | Reload the plugin (development) |
