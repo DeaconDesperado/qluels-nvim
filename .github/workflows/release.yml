@@ -7,106 +7,34 @@ on:
     types:
       - published
 
-env:
-  CARGO_TERM_COLOR: always
-  GITHUB_ACTIONS: true
-
 jobs:
-  build-linux-x86_64:
+  build:
+    name: Run tests
     runs-on: ubuntu-latest
-    services:
-      metastore:
-        image: apache/hive:4.0.0-beta-2-SNAPSHOT
-        env:
-          SERVICE_NAME: metastore
-          SERVICE_OPTS: "-Dhive.root.logger=console"
-        ports:
-          - 9083:9083
+    strategy:
+      matrix:
+        neovim_version: ['nightly', 'stable']
     steps:
       - uses: actions/checkout@v4
+      - name: Run tests
+        uses: nvim-neorocks/nvim-busted-action@v1.1.1
         with:
-          fetch-depth: 0
-      - name: Install target
-        uses: dtolnay/rust-toolchain@stable
-      - name: Build
-        run: cargo build --verbose --release
-      - name: Await metastore container
-        run: ./metastore.sh await
-      - name: Test
-        run: cargo test -- --show-output
-        env:
-          RUST_LOG: trace
-          RUSTFLAGS: '--cfg ci'
-      - name: Archive binaries 
-        uses: actions/upload-artifact@v4
-        with:
-          name: nektar-linux-x86_64
-          path: |
-            target/release/nektar
-
-  build-aarch64-darwin:
-    runs-on: 	macos-latest 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install aarch64 target 
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin 
-      - name: Build
-        run: cargo build --verbose --release --target=aarch64-apple-darwin
-      - name: Archive binaries 
-        uses: actions/upload-artifact@v4
-        with:
-          name: nektar-aarch64-apple-darwin 
-          path: |
-            target/aarch64-apple-darwin/release/nektar 
-
-
-  publish:
-    needs: [build-linux-x86_64, build-aarch64-darwin]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - run: cargo publish --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+          nvim_version: ${{ matrix.neovim_version }}
 
   release:
-    needs: [publish]
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download binary artifacts
-        id: download
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts 
-      - name: Echo download path
-        run: ls -lahR ${{steps.download.outputs.download-path}}
-      - name: Prepare x86_64 artifact name
-        run: mv ${{steps.download.outputs.download-path}}/nektar-linux-x86_64/nektar nektar-linux-x86_64
-      - name: Prepare aarch64 artifact name
-        run: mv ${{steps.download.outputs.download-path}}/nektar-aarch64-apple-darwin/nektar nektar-aarch64-apple-darwin
       - name: Build Changelog
         id: github_release
-        uses: mikepenz/release-changelog-builder-action@v5.0.0
+        uses: mikepenz/release-changelog-builder-action@v6.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release
         uses: ncipollo/release-action@v1 
         with:
-          artifacts: >- 
-            nektar-linux-x86_64,
-            nektar-aarch64-apple-darwin
           artifactErrorsFailBuild: true
           allowUpdates: true
           body: ${{steps.github_release.outputs.changelog}}

@@ -143,7 +143,7 @@ For fast iteration during development, use `:QluelsReload` to reload the plugin 
 Tests use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) and [busted](https://github.com/lunarmodules/busted) :
 
 ```bash
-   busted tests/ 
+   busted 
 ```
 
 ### Health Check

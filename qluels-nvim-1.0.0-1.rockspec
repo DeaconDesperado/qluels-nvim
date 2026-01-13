@@ -14,20 +14,16 @@ dependencies = {
 }
 build = {
    type = "builtin",
-   modules = {
-      ["qluels.config"] = "lua/qluels/config.lua",
-      ["qluels.constants"] = "lua/qluels/constants.lua",
-      ["qluels.health"] = "lua/qluels/health.lua",
-      ["qluels.init"] = "lua/qluels/init.lua",
-      ["qluels.lsp"] = "lua/qluels/lsp.lua",
-      ["qluels.query"] = "lua/qluels/query.lua"
-   },
    copy_directories = {
       "doc",
-      "tests"
+      "lua"
    }
 }
 test_dependencies = {
   "nlua",
   "plenary.nvim"
+}
+
+test = {
+  type = "busted"
 }
