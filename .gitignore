@@ -1,0 +1,12 @@
+# Direnv
+.direnv/
+
+# Nix
+result
+result-*
+
+# Editor
+.DS_Store
+*.swp
+*.swo
+*~

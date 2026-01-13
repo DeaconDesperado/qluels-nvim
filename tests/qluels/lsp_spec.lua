@@ -77,16 +77,3 @@ describe("qluels.lsp", function()
     end)
   end)
 end)
-
--- Note: More comprehensive tests would require mocking the LSP client,
--- which is beyond the scope of this initial test setup.
--- For integration tests, you would want to:
--- 1. Start a real qlue-ls server
--- 2. Attach the LSP client to a buffer
--- 3. Test the actual LSP communication
---
--- The tests above verify the error handling when no LSP client is attached.
--- To test actual LSP communication, you would need to:
--- 1. Mock vim.lsp.get_clients to return a mock client
--- 2. Mock the client's notify and request methods
--- 3. Verify the correct parameters are passed to the LSP

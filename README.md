@@ -140,18 +140,10 @@ For fast iteration during development, use `:QluelsReload` to reload the plugin 
 
 ### Running Tests
 
-Tests use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim):
+Tests use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) and [busted](https://github.com/lunarmodules/busted) :
 
 ```bash
-nvim --headless -u tests/minimal_init.lua \
-  -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua'}"
-```
-
-Or run specific test files:
-
-```bash
-nvim --headless -u tests/minimal_init.lua \
-  -c "PlenaryBustedFile tests/qluels/config_spec.lua"
+   busted tests/ 
 ```
 
 ### Health Check

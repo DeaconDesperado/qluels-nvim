@@ -3,25 +3,36 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs }:
-    let
-      system = "aarch64-darwin";
-      pkgs = import nixpkgs { inherit system; };
-    in
-    {
-      devShells.${system}.default = pkgs.mkShell {
-        packages = with pkgs; [
-          lua5_1
-          luarocks
-        ];
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs { inherit system; };
 
-        shellHook = ''
-          echo "qluels-nvim development environment"
-          echo "Lua: $(lua -v)"
-          echo "LuaRocks: $(luarocks --version | head -n 1)"
-        '';
-      };
-    };
+        # Create a Lua environment with test dependencies from nixpkgs
+        lua = pkgs.lua5_1.withPackages (ps: with ps; [
+          busted
+          nlua
+          plenary-nvim
+        ]);
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          packages = [
+            lua
+            pkgs.luarocks
+          ];
+
+          shellHook = ''
+            echo "qluels-nvim development environment"
+            echo "Lua: $(lua -v)"
+            echo "Packages available: busted, nlua, plenary.nvim"
+            echo ""
+            echo "Run tests with: busted tests/"
+          '';
+        };
+      }
+    );
 }
