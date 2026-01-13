@@ -92,6 +92,11 @@ require("qluels").setup({
 
 ### Backend Configuration
 
+See the [Qluels documentation](https://docs.qlue-ls.com/04_configuration/) for backend specific configuration.
+
+Backends configured via lua configuration tables are additive to any defined in qlue-ls's own configuration (the 
+plugin calls `addBackend` for every entry).
+
 ## Commands
 
 | Command | Description |
@@ -111,7 +116,7 @@ require("qluels").setup({
 " Add a new backend
 :QluelsAddBackend {"service": {"name": "dbpedia", "url": "https://dbpedia.org/sparql"}, "default": true}
 
-" Set default backend
+" Set active backend
 :QluelsSetBackend wikidata
 
 " Ping a backend
