@@ -45,9 +45,34 @@ describe("qluels.lsp", function()
     end)
   end)
 
-  describe("execute_query", function()
+  describe("execute_operation", function()
     it("returns false when qlue-ls is not attached", function()
       local success = lsp.execute_operation(function() end)
+      assert.is_false(success)
+    end)
+
+    it("returns false with optional parameters when not attached", function()
+      local success = lsp.execute_operation(
+        function() end,
+        0, -- bufnr
+        100, -- max_result_size
+        10, -- result_offset
+        "test_token" -- access_token
+      )
+      assert.is_false(success)
+    end)
+  end)
+
+  describe("change_settings", function()
+    it("returns false when qlue-ls is not attached", function()
+      local success = lsp.change_settings({ some = "setting" })
+      assert.is_false(success)
+    end)
+  end)
+
+  describe("get_default_settings", function()
+    it("returns false when qlue-ls is not attached", function()
+      local success = lsp.get_default_settings(function() end)
       assert.is_false(success)
     end)
   end)
@@ -59,3 +84,9 @@ end)
 -- 1. Start a real qlue-ls server
 -- 2. Attach the LSP client to a buffer
 -- 3. Test the actual LSP communication
+--
+-- The tests above verify the error handling when no LSP client is attached.
+-- To test actual LSP communication, you would need to:
+-- 1. Mock vim.lsp.get_clients to return a mock client
+-- 2. Mock the client's notify and request methods
+-- 3. Verify the correct parameters are passed to the LSP

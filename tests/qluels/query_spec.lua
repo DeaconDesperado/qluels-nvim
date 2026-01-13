@@ -5,20 +5,24 @@ describe("qluels.query", function()
   describe("format_results", function()
     it("formats SPARQL JSON results as a table", function()
       local results = {
-        head = {
-          vars = { "subject", "predicate", "object" },
-        },
-        results = {
-          bindings = {
-            {
-              subject = { value = "http://example.org/s1" },
-              predicate = { value = "http://example.org/p1" },
-              object = { value = "Object 1" },
+        queryResult = {
+          result = {
+            head = {
+              vars = { "subject", "predicate", "object" },
             },
-            {
-              subject = { value = "http://example.org/s2" },
-              predicate = { value = "http://example.org/p2" },
-              object = { value = "Object 2" },
+            results = {
+              bindings = {
+                {
+                  subject = { value = "http://example.org/s1" },
+                  predicate = { value = "http://example.org/p1" },
+                  object = { value = "Object 1" },
+                },
+                {
+                  subject = { value = "http://example.org/s2" },
+                  predicate = { value = "http://example.org/p2" },
+                  object = { value = "Object 2" },
+                },
+              },
             },
           },
         },
@@ -29,12 +33,7 @@ describe("qluels.query", function()
       -- Should have header, separator, and rows
       assert.is_true(#lines > 0)
 
-      -- Check that it contains the variables
-      assert.matches("subject", lines[1])
-      assert.matches("predicate", lines[1])
-      assert.matches("object", lines[1])
-
-      -- Check that it contains the data
+      -- Check that it contains the data (in expanded format)
       local all_lines = table.concat(lines, "\n")
       assert.matches("http://example.org/s1", all_lines)
       assert.matches("Object 1", all_lines)
@@ -45,11 +44,15 @@ describe("qluels.query", function()
 
     it("handles empty results", function()
       local results = {
-        head = {
-          vars = { "subject" },
-        },
-        results = {
-          bindings = {},
+        queryResult = {
+          result = {
+            head = {
+              vars = { "subject" },
+            },
+            results = {
+              bindings = {},
+            },
+          },
         },
       }
 
@@ -61,11 +64,15 @@ describe("qluels.query", function()
 
     it("handles results with no variables", function()
       local results = {
-        head = {
-          vars = {},
-        },
-        results = {
-          bindings = {},
+        queryResult = {
+          result = {
+            head = {
+              vars = {},
+            },
+            results = {
+              bindings = {},
+            },
+          },
         },
       }
 
@@ -77,14 +84,18 @@ describe("qluels.query", function()
 
     it("handles missing bindings gracefully", function()
       local results = {
-        head = {
-          vars = { "subject", "object" },
-        },
-        results = {
-          bindings = {
-            {
-              subject = { value = "http://example.org/s1" },
-              -- object is missing
+        queryResult = {
+          result = {
+            head = {
+              vars = { "subject", "object" },
+            },
+            results = {
+              bindings = {
+                {
+                  subject = { value = "http://example.org/s1" },
+                  -- object is missing
+                },
+              },
             },
           },
         },
@@ -97,7 +108,11 @@ describe("qluels.query", function()
     end)
 
     it("handles non-standard result format", function()
-      local results = { some = "unknown format" }
+      local results = {
+        queryResult = {
+          result = { some = "unknown format" }
+        }
+      }
 
       local lines = query.format_results(results)
 
