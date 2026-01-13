@@ -23,24 +23,27 @@ M.setup = function(opts)
     return
   end
 
-  local default_capabilities = vim.lsp.protocol.make_client_capabilities();
-  local default_on_attach = vim.lsp.handlers.default_on_attach
-
   if opts.auto_attach then
-    vim.lsp.config ("qlue-ls", {
-      name = constants.QLUE_IDENTITY,
-      filetypes = opts.server.filetypes,
-      cmd = { 'qlue-ls', 'server' },
-      capabilities = vim.tbl_deep_extend(
-        "force",
-        default_capabilities,
-        opts.server.capabilities or {}
-      ),
-      root_dir = vim.fn.getcwd(),
-      on_attach = opts.server.on_attach or default_on_attach
-    })
+    -- Create autocommand for filetype-specific LSP activation
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = opts.server.filetypes or {"sparql"},
+      group = vim.api.nvim_create_augroup("QluelsLspAttach", { clear = true }),
+      callback = function(args)
+        local default_capabilities = vim.lsp.protocol.make_client_capabilities()
 
-    vim.lsp.enable({constants.QLUE_IDENTITY})
+        vim.lsp.start({
+          name = constants.QLUE_IDENTITY,
+          cmd = { 'qlue-ls', 'server' },
+          capabilities = vim.tbl_deep_extend(
+            "force",
+            default_capabilities,
+            opts.server.capabilities or {}
+          ),
+          root_dir = vim.fs.root(args.buf, {".git"}) or vim.fn.getcwd(),
+          on_attach = opts.server.on_attach,
+        }, { bufnr = args.buf })
+      end,
+    })
   end
 
   -- Store a flag that we've been set up
