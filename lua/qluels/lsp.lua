@@ -145,6 +145,34 @@ M.get_default_settings = function(callback, bufnr)
   return true
 end
 
+---List all registered backends from the language server
+---Sends a qlueLs/listBackends request
+---@param callback fun(backends?: string[], err?: string) Callback with backend names
+---@param bufnr? number Buffer number (0 or nil for current)
+---@return boolean success Whether the request was sent
+M.list_backends = function(callback, bufnr)
+  bufnr = bufnr or 0
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  local client = M.get_client(bufnr)
+  if not client then
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
+    return false
+  end
+
+  client:request("qlueLs/listBackends", {}, function(err, result)
+    if err then
+      callback(nil, err.message or "Unknown error")
+    else
+      callback(result, nil)
+    end
+  end, bufnr)
+
+  return true
+end
+
 ---Execute a SPARQL query against a backend
 ---Sends a qlueLs/executeOperation request
 ---The query is read from the current buffer contents
