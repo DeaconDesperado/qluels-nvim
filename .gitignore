@@ -10,3 +10,5 @@ result-*
 *.swp
 *.swo
 *~
+
+.dev-env

@@ -42,8 +42,6 @@ M.defaults = {
   },
 }
 
-print("LOADED")
-
 ---Validate a backend configuration
 ---@param backend_name string
 ---@param backend QluelsBackend

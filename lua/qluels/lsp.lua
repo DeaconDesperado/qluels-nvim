@@ -2,6 +2,10 @@ local constants = require("qluels.constants");
 ---LSP integration for qlue-ls custom actions
 local M = {}
 
+---@class ListBackendsResponse
+---@field name string
+---@field url string
+
 ---Get the qlue-ls client for the current buffer
 ---@param bufnr? number Buffer number (0 or nil for current)
 ---@return table? client The qlue-ls LSP client, or nil if not found
@@ -147,7 +151,7 @@ end
 
 ---List all registered backends from the language server
 ---Sends a qlueLs/listBackends request
----@param callback fun(backends?: string[], err?: string) Callback with backend names
+---@param callback fun(backends?: ListBackendsResponse[], err?: string) Callback with backend names
 ---@param bufnr? number Buffer number (0 or nil for current)
 ---@return boolean success Whether the request was sent
 M.list_backends = function(callback, bufnr)
@@ -180,7 +184,7 @@ end
 ---@param bufnr? number Buffer number (0 or nil for current)
 ---@param max_result_size? number Maximum number of results to return
 ---@param result_offset? number Offset for result pagination
----@param access_token? string Access token to be forwarded to the backend 
+---@param access_token? string Access token to be forwarded to the backend
 ---@return boolean success Whether the request was sent
 M.execute_operation = function(callback, bufnr, max_result_size, result_offset, access_token)
   bufnr = bufnr or 0

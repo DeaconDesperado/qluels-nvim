@@ -10,7 +10,7 @@ M.available = function()
 end
 
 ---Pick from a list of items using telescope
----@param items string[] Items to pick from
+---@param items ListBackendsResponse[] Backends to pick from
 ---@param opts table Options with prompt and on_select callback
 M.pick = function(items, opts)
   opts = opts or {}

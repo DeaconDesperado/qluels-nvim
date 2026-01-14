@@ -38,7 +38,7 @@ M._picker_module_name = function(name)
 end
 
 ---Pick a backend from the list
----@param callback fun(backend?: string) Called with selected backend name or nil if cancelled
+---@param callback fun(backend?: ListBackendsResponse) Called with selected backend name or nil if cancelled
 ---@param bufnr? number Buffer number for LSP client
 M.pick_backend = function(callback, bufnr)
   local lsp = require("qluels.lsp")

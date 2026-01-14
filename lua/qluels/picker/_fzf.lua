@@ -15,8 +15,16 @@ end
 M.pick = function(items, opts)
   opts = opts or {}
   local fzf = require("fzf-lua")
+  local names = {}
+  for key, value in pairs(items) do
+    -- Convert key and value to string as needed
+    table.insert(names, value.name)
+  end
 
-  fzf.fzf_exec(items, {
+
+  vim.notify(vim.inspect(results))
+
+  fzf.fzf_exec(names, {
     prompt = (opts.prompt or "Select") .. "> ",
     actions = {
       ["default"] = function(selected)

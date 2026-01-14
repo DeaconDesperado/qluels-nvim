@@ -9,7 +9,7 @@ M.available = function()
 end
 
 ---Pick from a list of items
----@param items string[] Items to pick from
+---@param items ListBackendsResponse[] Items to pick from
 ---@param opts table Options with prompt and on_select callback
 M.pick = function(items, opts)
   opts = opts or {}
@@ -17,11 +17,11 @@ M.pick = function(items, opts)
   vim.ui.select(items, {
     prompt = opts.prompt or "Select item",
     format_item = function(item)
-      return item
+      return item.name
     end,
   }, function(selected)
     if opts.on_select then
-      opts.on_select(selected)
+      opts.on_select(selected.name)
     end
   end)
 end

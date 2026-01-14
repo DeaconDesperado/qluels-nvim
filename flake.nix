@@ -1,5 +1,5 @@
 {
-  description = "Development environment for qluels-nvim (Zero-Build + Working Plugins)";
+  description = "Development environment for qluels-nvim (Proper Nix)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -15,19 +15,21 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # --- 1. Define Plugin Lists ---
+        # --- 1. PLUGINS ---
         commonPlugins = with pkgs.vimPlugins; [
           plenary-nvim
           blink-cmp
           nvim-treesitter
         ];
 
-        # Add telescope to the specific list
         telescopePlugins = commonPlugins ++ [ pkgs.vimPlugins.telescope-nvim ];
+        fzfPlugins = commonPlugins ++ [
+          pkgs.vimPlugins.nvim-web-devicons 
+          pkgs.vimPlugins.fzf-lua
+        ];
 
-        # This takes a list of Nix packages and converts them into Lua code
-        # that prepends their paths to the runtime path.
-        # Result: "vim.opt.rtp:prepend('/nix/store/...-telescope')"
+        # --- 2. HELPERS ---
+        # Helper to inject plugin paths directly into RTP
         mkPluginPath = plugins: 
           let
             toLua = p: "vim.opt.rtp:prepend('${p}')";
@@ -35,12 +37,11 @@
           in
             builtins.concatStringsSep "\n" lines;
 
-        # Generate the Lua blocks INSTANTLY during evaluation
         loadCommon = mkPluginPath commonPlugins;
         loadTelescope = mkPluginPath telescopePlugins;
+        loadFzfLua = mkPluginPath fzfPlugins;
 
-
-        # --- 3. Lua Logic Strings (Same as before) ---
+        # --- 3. LUA FRAGMENTS ---
         initBlink = ''
           vim.opt.completeopt = { 'menuone', 'noselect', 'noinsert' }
           require('blink-cmp').setup({
@@ -69,6 +70,75 @@
           })
         '';
 
+        # --- 4. NIX FILE GENERATION (The Change) ---
+        
+        # A. Create the Config Files in the Nix Store
+        # pkgs.writeText is incredibly fast (just copies string to store).
+        
+        telescopeLua = pkgs.writeText "init-telescope.lua" ''
+          vim.opt.termguicolors = true
+          ${loadTelescope}
+          vim.opt.rtp:prepend(vim.fn.getcwd())
+          require('telescope').setup({
+             defaults = { file_ignore_patterns = { "target/", ".git/" } }
+          })
+          ${initQlueLS}
+          ${initBlink}
+        '';
+
+        minimalLua = pkgs.writeText "init-minimal.lua" ''
+          vim.opt.termguicolors = true
+          ${loadCommon}
+          vim.opt.rtp:prepend(vim.fn.getcwd())
+          ${initQlueLS}
+          ${initBlink}
+        '';
+
+        fzfLuaLua = pkgs.writeText "init-fzflua.lua" ''
+          vim.opt.termguicolors = true
+          ${loadFzfLua}
+          vim.opt.rtp:prepend(vim.fn.getcwd())
+          require('fzf-lua').setup()
+          ${initQlueLS}
+          ${initBlink}
+        '';
+
+        # B. Create the Executables in the Nix Store
+        # pkgs.writeShellScriptBin creates a 'bin/name' wrapper. 
+        # We also move the isolation env vars HERE, so the binary is robust
+        # even if you run it outside the direnv shell.
+
+        nvimTelescope = pkgs.writeShellScriptBin "nvim-telescope" ''
+          # 1. Isolate State to the project directory
+          export NVIM_APPNAME="nvim-telescope"
+          export XDG_CONFIG_HOME="$PWD/.dev-env/config"
+          export XDG_DATA_HOME="$PWD/.dev-env/data"
+          export XDG_STATE_HOME="$PWD/.dev-env/state"
+          
+          # 2. Launch Nvim with the specific config file from Nix Store
+          exec ${pkgs.neovim}/bin/nvim -u "${telescopeLua}" "$@"
+        '';
+
+        nvimMinimal = pkgs.writeShellScriptBin "nvim-minimal" ''
+          export NVIM_APPNAME="nvim-minimal"
+          export XDG_CONFIG_HOME="$PWD/.dev-env/config"
+          export XDG_DATA_HOME="$PWD/.dev-env/data"
+          export XDG_STATE_HOME="$PWD/.dev-env/state"
+          
+          exec ${pkgs.neovim}/bin/nvim -u "${minimalLua}" "$@"
+        '';
+
+        nvimFzfLua = pkgs.writeShellScriptBin "nvim-fzf" ''
+          export NVIM_APPNAME="nvim-fzf"
+          export XDG_CONFIG_HOME="$PWD/.dev-env/config"
+          export XDG_DATA_HOME="$PWD/.dev-env/data"
+          export XDG_STATE_HOME="$PWD/.dev-env/state"
+          
+          exec ${pkgs.neovim}/bin/nvim -u "${fzfLuaLua}" "$@"
+        '';
+ 
+
+        # --- 5. RUST APP ---
         qlue-ls-pkg = pkgs.rustPlatform.buildRustPackage rec {
           pname = "qlue-ls";
           version = "1.1.2-list";
@@ -83,80 +153,25 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          # We still include them here so LSP/Lua can find them if needed,
-          # but Neovim will rely on the hardcoded paths in init.lua.
+          # We add our custom binaries to the packages list.
+          # Nix puts them in $PATH automatically.
           packages = [
             pkgs.neovim
             pkgs.luarocks
             lua
             qlue-ls-pkg
-          ] ++ telescopePlugins;
+            nvimTelescope
+            nvimMinimal
+            nvimFzfLua
+          ];
 
+          # ShellHook is now purely for info, or creating dirs if you really want to.
+          # The wrappers create their own XDG directories on the fly if needed.
           shellHook = ''
-            # --- SETUP ENVIRONMENT ---
-            export DEV_ENV="$PWD/.dev-env"
-            export XDG_CONFIG_HOME="$DEV_ENV/config"
-            export XDG_DATA_HOME="$DEV_ENV/data"
-            export XDG_STATE_HOME="$DEV_ENV/state"
-            
-            export DEV_BIN="$DEV_ENV/bin"
-            mkdir -p "$XDG_CONFIG_HOME" "$DEV_BIN"
-
-            # --- GENERATE CONFIGS ---
-
-            # 1. NVIM-TELESCOPE
-            mkdir -p "$XDG_CONFIG_HOME/nvim-telescope"
-            cat <<EOF > "$XDG_CONFIG_HOME/nvim-telescope/init.lua"
-              vim.opt.termguicolors = true
-              
-              -- 1. Inject Nix Plugin Paths (Hardcoded)
-              ${loadTelescope}
-
-              -- 2. Inject Local Source (Priority)
-              vim.opt.rtp:prepend(vim.fn.getcwd())
-
-              -- 3. Configure
-              require('telescope').setup({
-                 defaults = { file_ignore_patterns = { "target/", ".git/" } }
-              })
-              ${initQlueLS}
-              ${initBlink}
-            EOF
-
-            # 2. NVIM-MINIMAL
-            mkdir -p "$XDG_CONFIG_HOME/nvim-minimal"
-            cat <<EOF > "$XDG_CONFIG_HOME/nvim-minimal/init.lua"
-              vim.opt.termguicolors = true
-              
-              -- 1. Inject Nix Plugin Paths (Hardcoded)
-              ${loadCommon}
-
-              -- 2. Inject Local Source
-              vim.opt.rtp:prepend(vim.fn.getcwd())
-              
-              ${initQlueLS}
-              ${initBlink}
-            EOF
-
-            # --- GENERATE WRAPPERS ---
-            
-            cat <<EOF > "$DEV_BIN/nvim-telescope"
-            #!/bin/sh
-            export NVIM_APPNAME="nvim-telescope"
-            exec nvim "\$@"
-            EOF
-            chmod +x "$DEV_BIN/nvim-telescope"
-
-            cat <<EOF > "$DEV_BIN/nvim-minimal"
-            #!/bin/sh
-            export NVIM_APPNAME="nvim-minimal"
-            exec nvim "\$@"
-            EOF
-            chmod +x "$DEV_BIN/nvim-minimal"
-
-            export PATH="$DEV_BIN:$PATH"
-
-            echo "✅ Zero-Build Env Loaded"
+             echo "✅ Proper Nix Dev Env Loaded"
+             echo "   - nvim-telescope"
+             echo "   - nvim-minimal"
+             echo "   - nvim-fzf"
           '';
         };
       }
