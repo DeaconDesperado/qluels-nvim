@@ -31,11 +31,24 @@ end, {
 vim.api.nvim_create_user_command("QluelsSetBackend", function(opts)
   local backend_name = opts.args
 
+  -- If no backend name provided, launch picker
   if backend_name == "" then
-    vim.notify("Backend name is required", vim.log.levels.ERROR)
+    local picker = require("qluels.picker")
+    picker.pick_backend(function(selected)
+      if selected then
+        local lsp = require("qluels.lsp")
+        local success = lsp.update_default_backend(selected)
+        if success then
+          vim.notify("Default backend set to: " .. selected, vim.log.levels.INFO)
+        else 
+          vim.notify(success)
+        end
+      end
+    end)
     return
   end
 
+  -- Direct backend selection (existing behavior)
   local lsp = require("qluels.lsp")
   local success = lsp.update_default_backend(backend_name)
 
@@ -43,7 +56,7 @@ vim.api.nvim_create_user_command("QluelsSetBackend", function(opts)
     vim.notify("Default backend set to: " .. backend_name, vim.log.levels.INFO)
   end
 end, {
-  nargs = 1,
+  nargs = "?",
   desc = "Set the default SPARQL backend",
 })
 

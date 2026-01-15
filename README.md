@@ -6,7 +6,7 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 
 - **Custom LSP Actions**: Support for qlue-ls custom LSP actions like `addBackend`, `updateBackend`, `pingBackend`, etc.
 - **Query Execution**: Execute SPARQL queries from buffers with formatted table results
-- **Backend Management**: Configure and manage multiple SPARQL endpoints
+- **Backend Management**: Configure and manage multiple SPARQL endpoints, including via popular pickers (telescope, fzf-lua)
 - **Health Checks**: Integrated `:checkhealth` support
 
 ## Requirements
@@ -95,7 +95,8 @@ require("qluels").setup({
 See the [Qluels documentation](https://docs.qlue-ls.com/04_configuration/) for backend specific configuration.
 
 Backends configured via lua configuration tables are additive to any defined in qlue-ls's own configuration (the 
-plugin calls `addBackend` for every entry).
+plugin calls `addBackend` for every entry).  This allows you to store project local backends in your repository's
+`qlue-ls.[yml|toml]` while storing global ones in your nvim configuration.
 
 ## Commands
 
@@ -103,6 +104,7 @@ plugin calls `addBackend` for every entry).
 |---------|-------------|
 | `:QluelsAddBackend {json}` | Add a SPARQL backend |
 | `:QluelsSetBackend {name}` | Set the default backend |
+| `:QluelsSetBackend` | Without name specified, will launch your configured picker to choose backend |
 | `:QLuelsPingBackend [{name}]` | Check backend availability |
 | `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query.|
 | `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query. |

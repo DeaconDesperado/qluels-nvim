@@ -1,8 +1,8 @@
 ---@class QluelsConfig
 ---@field server QluelsServer Settings for the language server itself
 ---@field backends? table<string, QluelsBackend> Pre-configured backends
----@field auto_attach boolean Automatically attach LSP to SPARQL files
----@field result_buffer QluelsResultBufferConfig Result buffer display options
+---@field auto_attach? boolean Automatically attach LSP to SPARQL files
+---@field result_buffer? QluelsResultBufferConfig Result buffer display options
 
 ---@class QluelsServer
 ---@field capabilities? table|nil The client capabilities. 

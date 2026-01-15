@@ -34,10 +34,27 @@
         "type": "github"
       }
     },
+    "qlue-ls": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1768425329,
+        "narHash": "sha256-UDtOd9Ftl74Bea5czbZxPmnVOYeN4nukWlqU0cJ2H5I=",
+        "ref": "refs/heads/list-backends",
+        "rev": "f61abd7de5ab24bd52c83d7a6bd0768129507025",
+        "revCount": 882,
+        "type": "git",
+        "url": "file:///Users/mgthesecond/projects/foss/Qlue-ls/"
+      },
+      "original": {
+        "type": "git",
+        "url": "file:///Users/mgthesecond/projects/foss/Qlue-ls/"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "qlue-ls": "qlue-ls"
       }
     },
     "systems": {

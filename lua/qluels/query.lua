@@ -79,7 +79,6 @@ M.format_results = function(results, viewport_width)
   if type(queryResults) == "table" then
     -- Check if it's a SPARQL results format
     if queryResults.result.head and queryResults.result.results then
-      -- Standard SPARQL JSON results format
       local vars = queryResults.result.head.vars or {}
       local bindings = queryResults.result.results.bindings or {}
 
