@@ -87,6 +87,34 @@ describe("qluels.config", function()
       assert.is_true(valid)
       assert.is_nil(err)
     end)
+
+    it("accepts engine field in service", function()
+      local backend = {
+        service = {
+          name = "test",
+          url = "http://example.com/sparql",
+          engine = "QLever",
+        },
+      }
+
+      local valid, err = config.validate_backend("test", backend)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("accepts healthCheckUrl in service", function()
+      local backend = {
+        service = {
+          name = "test",
+          url = "http://example.com/sparql",
+          healthCheckUrl = "http://example.com/health",
+        },
+      }
+
+      local valid, err = config.validate_backend("test", backend)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
   end)
 
   describe("validate", function()
