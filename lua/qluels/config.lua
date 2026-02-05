@@ -16,10 +16,13 @@
 ---@field prefixMap? table<string, string> Prefix mappings
 ---@field queries? table<string, string> Completion query templates
 
+---@alias QluelsEngine "QLever"|"GraphDB"|"Virtuoso"|"MillenniumDB"|"Blazegraph"|"Jena"
+
 ---@class QluelsService
 ---@field name string Backend identifier
 ---@field url string SPARQL endpoint URL
 ---@field healthCheckUrl? string Optional health check URL
+---@field engine? QluelsEngine SPARQL engine type for engine-specific optimizations
 
 ---@class QluelsResultBufferConfig
 ---@field position "right"|"left"|"above"|"below" Split position
