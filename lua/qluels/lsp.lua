@@ -185,8 +185,9 @@ end
 ---@param max_result_size? number Maximum number of results to return
 ---@param result_offset? number Offset for result pagination
 ---@param access_token? string Access token to be forwarded to the backend
+---@param query_id? string Optional query ID for cancellation support
 ---@return boolean success Whether the request was sent
-M.execute_operation = function(callback, bufnr, max_result_size, result_offset, access_token)
+M.execute_operation = function(callback, bufnr, max_result_size, result_offset, access_token, query_id)
   bufnr = bufnr or 0
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
@@ -217,11 +218,151 @@ M.execute_operation = function(callback, bufnr, max_result_size, result_offset, 
     params.accessToken = access_token
   end
 
+  if query_id then
+    params.queryId = query_id
+  end
+
   client:request("qlueLs/executeOperation", params, function(err, result)
     if err then
       callback(nil, err.message or "Unknown error")
     else
       callback(result, nil)
+    end
+  end, bufnr)
+
+  return true
+end
+
+---Get the currently active default backend
+---Sends a qlueLs/getBackend request
+---@param callback fun(backend?: table, err?: string) Callback with backend info
+---@param bufnr? number Buffer number (0 or nil for current)
+---@return boolean success Whether the request was sent
+M.get_backend = function(callback, bufnr)
+  bufnr = bufnr or 0
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  local client = M.get_client(bufnr)
+  if not client then
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
+    return false
+  end
+
+  client:request("qlueLs/getBackend", {}, function(err, result)
+    if err then
+      callback(nil, err.message or "Unknown error")
+    else
+      callback(result, nil)
+    end
+  end, bufnr)
+
+  return true
+end
+
+---Cancel a running SPARQL query
+---Sends a qlueLs/cancelQuery notification
+---@param query_id string The ID of the query to cancel
+---@param bufnr? number Buffer number (0 or nil for current)
+---@return boolean success Whether the notification was sent
+M.cancel_query = function(query_id, bufnr)
+  bufnr = bufnr or 0
+
+  local client = M.get_client(bufnr)
+  if not client then
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
+    return false
+  end
+
+  client:notify("qlueLs/cancelQuery", {
+    queryId = query_id,
+  })
+  return true
+end
+
+---@class JumpResult
+---@field position {line: number, character: number} The position to jump to
+---@field insertBefore? string Text to insert before cursor
+---@field insertAfter? string Text to insert after cursor
+
+---Jump to the next or previous relevant position in the query
+---Enables "tab navigation" within SPARQL queries
+---Sends a qlueLs/jump request
+---@param callback fun(result?: JumpResult, err?: string) Callback with jump result
+---@param previous? boolean If true, jump to previous position instead of next
+---@param bufnr? number Buffer number (0 or nil for current)
+---@return boolean success Whether the request was sent
+M.jump = function(callback, previous, bufnr)
+  bufnr = bufnr or 0
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  local client = M.get_client(bufnr)
+  if not client then
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
+    return false
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local params = {
+    textDocument = {
+      uri = vim.uri_from_bufnr(bufnr)
+    },
+    position = {
+      line = cursor[1] - 1, -- Convert to 0-indexed
+      character = cursor[2],
+    },
+  }
+
+  if previous then
+    params.previous = true
+  end
+
+  client:request("qlueLs/jump", params, function(err, result)
+    if err then
+      callback(nil, err.message or "Unknown error")
+    else
+      callback(result, nil)
+    end
+  end, bufnr)
+
+  return true
+end
+
+---@alias OperationType "Query"|"Update"|"Unknown"
+
+---Identify the operation type of the current SPARQL document
+---Sends a qlueLs/identifyOperationType request
+---@param callback fun(operation_type?: OperationType, err?: string) Callback with operation type
+---@param bufnr? number Buffer number (0 or nil for current)
+---@return boolean success Whether the request was sent
+M.identify_operation_type = function(callback, bufnr)
+  bufnr = bufnr or 0
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  local client = M.get_client(bufnr)
+  if not client then
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
+    return false
+  end
+
+  local params = {
+    textDocument = {
+      uri = vim.uri_from_bufnr(bufnr)
+    }
+  }
+
+  client:request("qlueLs/identifyOperationType", params, function(err, result)
+    if err then
+      callback(nil, err.message or "Unknown error")
+    elseif result then
+      callback(result.operationType, nil)
+    else
+      callback(nil, nil)
     end
   end, bufnr)
 
