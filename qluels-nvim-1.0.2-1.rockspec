@@ -1,6 +1,6 @@
 rockspec_format = '3.0'
 package = "qluels-nvim"
-version = "1.0.0-1"
+version = "1.0.2-1"
 source = {
    url = "git+ssh://git@github.com/DeaconDesperado/qluels-nvim.git"
 }
