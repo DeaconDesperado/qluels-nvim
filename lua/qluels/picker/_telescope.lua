@@ -24,13 +24,16 @@ M.pick = function(items, opts)
   local displayer = entry_display.create {
     separator = "|",
     items = {
+      { width = 2 },
       { width = 20 },
       { remaining = true },
     },
   }
 
   local make_display = function(entry)
+    local marker = entry.is_default and "*" or " "
     return displayer {
+      {marker},
       {entry.name},
       {entry.url}
     }
@@ -43,12 +46,13 @@ M.pick = function(items, opts)
       results = items,
       entry_maker = function(entry)
         return {
-        value = entry.name,
-        ordinal = entry.name,
-        name = entry.name,
-        url = entry.url,
-        display = make_display
-      }
+          value = entry.name,
+          ordinal = entry.name,
+          name = entry.name,
+          url = entry.url,
+          is_default = entry.default,
+          display = make_display,
+        }
       end
     }),
     sorter = conf.generic_sorter({}),

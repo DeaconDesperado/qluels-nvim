@@ -10,10 +10,8 @@ describe("qluels.config", function()
   describe("validate_backend", function()
     it("validates a valid backend", function()
       local backend = {
-        service = {
-          name = "wikidata",
-          url = "https://query.wikidata.org/sparql",
-        },
+        name = "wikidata",
+        url = "https://query.wikidata.org/sparql",
         default = true,
       }
 
@@ -22,36 +20,33 @@ describe("qluels.config", function()
       assert.is_nil(err)
     end)
 
-    it("rejects backend with missing service", function()
+    it("rejects backend with missing name", function()
       local backend = {
+        url = "http://example.com/sparql",
         default = true,
       }
 
       local valid, err = config.validate_backend("test", backend)
       assert.is_false(valid)
       assert.is_not_nil(err)
-      assert.matches("service must be a table", err)
+      assert.matches("name", err)
     end)
 
-    it("rejects backend with missing service.name", function()
+    it("rejects backend with missing url", function()
       local backend = {
-        service = {
-          url = "http://example.com/sparql",
-        },
+        name = "test",
       }
 
       local valid, err = config.validate_backend("test", backend)
       assert.is_false(valid)
       assert.is_not_nil(err)
-      assert.matches("service.name", err)
+      assert.matches("url", err)
     end)
 
     it("rejects backend with invalid requestMethod", function()
       local backend = {
-        service = {
-          name = "test",
-          url = "http://example.com/sparql",
-        },
+        name = "test",
+        url = "http://example.com/sparql",
         requestMethod = "PUT",
       }
 
@@ -62,10 +57,8 @@ describe("qluels.config", function()
 
     it("accepts GET requestMethod", function()
       local backend = {
-        service = {
-          name = "test",
-          url = "http://example.com/sparql",
-        },
+        name = "test",
+        url = "http://example.com/sparql",
         requestMethod = "GET",
       }
 
@@ -76,10 +69,8 @@ describe("qluels.config", function()
 
     it("accepts POST requestMethod", function()
       local backend = {
-        service = {
-          name = "test",
-          url = "http://example.com/sparql",
-        },
+        name = "test",
+        url = "http://example.com/sparql",
         requestMethod = "POST",
       }
 
@@ -88,13 +79,11 @@ describe("qluels.config", function()
       assert.is_nil(err)
     end)
 
-    it("accepts engine field in service", function()
+    it("accepts engine field", function()
       local backend = {
-        service = {
-          name = "test",
-          url = "http://example.com/sparql",
-          engine = "QLever",
-        },
+        name = "test",
+        url = "http://example.com/sparql",
+        engine = "QLever",
       }
 
       local valid, err = config.validate_backend("test", backend)
@@ -102,18 +91,40 @@ describe("qluels.config", function()
       assert.is_nil(err)
     end)
 
-    it("accepts healthCheckUrl in service", function()
+    it("accepts healthCheckUrl field", function()
       local backend = {
-        service = {
-          name = "test",
-          url = "http://example.com/sparql",
-          healthCheckUrl = "http://example.com/health",
-        },
+        name = "test",
+        url = "http://example.com/sparql",
+        healthCheckUrl = "http://example.com/health",
       }
 
       local valid, err = config.validate_backend("test", backend)
       assert.is_true(valid)
       assert.is_nil(err)
+    end)
+
+    it("accepts additionalData field", function()
+      local backend = {
+        name = "test",
+        url = "http://example.com/sparql",
+        additionalData = { foo = "bar" },
+      }
+
+      local valid, err = config.validate_backend("test", backend)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("rejects invalid additionalData", function()
+      local backend = {
+        name = "test",
+        url = "http://example.com/sparql",
+        additionalData = "not a table",
+      }
+
+      local valid, err = config.validate_backend("test", backend)
+      assert.is_false(valid)
+      assert.matches("additionalData", err)
     end)
   end)
 
@@ -122,10 +133,8 @@ describe("qluels.config", function()
       local cfg = {
         backends = {
           wikidata = {
-            service = {
-              name = "wikidata",
-              url = "https://query.wikidata.org/sparql",
-            },
+            name = "wikidata",
+            url = "https://query.wikidata.org/sparql",
             default = true,
           },
         },
@@ -162,6 +171,48 @@ describe("qluels.config", function()
         assert.is_nil(err)
       end
     end)
+
+    it("accepts on_type_formatting option", function()
+      local cfg = {
+        on_type_formatting = true,
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("rejects invalid on_type_formatting", function()
+      local cfg = {
+        on_type_formatting = "yes",
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_false(valid)
+      assert.matches("on_type_formatting", err)
+    end)
+
+    it("accepts settings option", function()
+      local cfg = {
+        settings = {
+          format = { keep_empty_lines = true },
+        },
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("rejects invalid settings", function()
+      local cfg = {
+        settings = "not a table",
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_false(valid)
+      assert.matches("settings", err)
+    end)
   end)
 
   describe("setup", function()
@@ -169,10 +220,8 @@ describe("qluels.config", function()
       local user_config = {
         backends = {
           test = {
-            service = {
-              name = "test",
-              url = "http://localhost/sparql",
-            },
+            name = "test",
+            url = "http://localhost/sparql",
           },
         },
       }
@@ -186,7 +235,7 @@ describe("qluels.config", function()
 
       -- Check that user config is applied
       assert.is_not_nil(config.current.backends.test)
-      assert.equals("test", config.current.backends.test.service.name)
+      assert.equals("test", config.current.backends.test.name)
     end)
 
     it("rejects invalid configuration", function()

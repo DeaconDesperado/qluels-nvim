@@ -7,12 +7,15 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 - **Custom LSP Actions**: Support for qlue-ls custom LSP actions like `addBackend`, `updateBackend`, `pingBackend`, etc.
 - **Query Execution**: Execute SPARQL queries from buffers with formatted table results
 - **Backend Management**: Configure and manage multiple SPARQL endpoints, including via popular pickers (telescope, fzf-lua)
+- **Parse Tree Viewer**: Inspect the SPARQL parse tree for debugging
+- **On-Type Formatting**: Automatic formatting on `;`, `.` triggers (opt-in)
+- **Settings Forwarding**: Push formatting/completion settings to qlue-ls on attach
 - **Health Checks**: Integrated `:checkhealth` support
 
 ## Requirements
 
 - Neovim 0.8.0 or later
-- [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) language server
+- [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) v2.0+ language server
 - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) (optional, for running tests)
 
 ## Installation
@@ -27,10 +30,8 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
       auto_attach = true,
       backends = {
         wikidata = {
-          service = {
-            name = "wikidata",
-            url = "https://query.wikidata.org/sparql",
-          },
+          name = "wikidata",
+          url = "https://query.wikidata.org/sparql",
           default = true,
         },
       },
@@ -58,11 +59,9 @@ require("qluels").setup({
   auto_attach = true,
   backends = {
     wikidata = {
-      service = {
-        name = "wikidata",
-        url = "https://query.wikidata.org/sparql",
-        healthCheckUrl = "https://query.wikidata.org/",  -- Optional
-      },
+      name = "wikidata",
+      url = "https://query.wikidata.org/sparql",
+      healthCheckUrl = "https://query.wikidata.org/",  -- Optional
       requestMethod = "GET",  -- "GET" or "POST"
       default = true,         -- Set as default backend
       prefixMap = {           -- Optional prefix mappings
@@ -71,16 +70,24 @@ require("qluels").setup({
       },
     },
     dbpedia = {
-      service = {
-        name = "dbpedia",
-        url = "https://dbpedia.org/sparql",
-      },
+      name = "dbpedia",
+      url = "https://dbpedia.org/sparql",
       requestMethod = "POST",
     },
   },
 
-  -- Automatically attach LSP to SPARQL files
-  auto_attach = true,
+  -- Enable on-type formatting (default: false)
+  -- Typing ';' or '.' after a triple triggers automatic formatting
+  on_type_formatting = false,
+
+  -- Server settings pushed to qlue-ls on attach (optional)
+  settings = {
+    format = {
+      keep_empty_lines = false,
+      align_predicates = true,
+    },
+    auto_line_break = false,
+  },
 
   -- Result buffer display configuration
   result_buffer = {
@@ -94,7 +101,7 @@ require("qluels").setup({
 
 See the [Qluels documentation](https://docs.qlue-ls.com/04_configuration/) for backend specific configuration.
 
-Backends configured via lua configuration tables are additive to any defined in qlue-ls's own configuration (the 
+Backends configured via lua configuration tables are additive to any defined in qlue-ls's own configuration (the
 plugin calls `addBackend` for every entry).  This allows you to store project local backends in your repository's
 `qlue-ls.[yml|toml]` while storing global ones in your nvim configuration.
 
@@ -103,11 +110,13 @@ plugin calls `addBackend` for every entry).  This allows you to store project lo
 | Command | Description |
 |---------|-------------|
 | `:QluelsAddBackend {json}` | Add a SPARQL backend |
+| `:QluelsListBackends` | List all registered backends (`*` marks default) |
 | `:QluelsSetBackend {name}` | Set the default backend |
 | `:QluelsSetBackend` | Without name specified, will launch your configured picker to choose backend |
 | `:QLuelsPingBackend [{name}]` | Check backend availability |
-| `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query.|
-| `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query. |
+| `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query |
+| `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query |
+| `:QluelsParseTree` | Display the SPARQL parse tree (use `!` to skip trivia) |
 | `:QluelsCloseResults` | Close the results window |
 | `:QluelsGetDefaultSettings` | Get qlue-ls default settings |
 | `:QluelsReload` | Reload the plugin (development) |
@@ -116,7 +125,7 @@ plugin calls `addBackend` for every entry).  This allows you to store project lo
 
 ```vim
 " Add a new backend
-:QluelsAddBackend {"service": {"name": "dbpedia", "url": "https://dbpedia.org/sparql"}, "default": true}
+:QluelsAddBackend {"name": "dbpedia", "url": "https://dbpedia.org/sparql", "default": true}
 
 " Set active backend
 :QluelsSetBackend wikidata
@@ -125,10 +134,16 @@ plugin calls `addBackend` for every entry).  This allows you to store project lo
 :QLuelsPingBackend wikidata
 
 " Execute current buffer as a query
-:QluelsExecuteQuery
+:QluelsExecute
 
 " Execute visual selection
-:'<,'>QluelsExecuteSelection wikidata
+:'<,'>QluelsExecuteSelection
+
+" View parse tree
+:QluelsParseTree
+
+" View parse tree without trivia (whitespace, comments)
+:QluelsParseTree!
 ```
 ## Development
 
@@ -145,7 +160,7 @@ For fast iteration during development, use `:QluelsReload` to reload the plugin 
 Tests use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) and [busted](https://github.com/lunarmodules/busted) :
 
 ```bash
-   busted 
+   busted
 ```
 
 ### Health Check
