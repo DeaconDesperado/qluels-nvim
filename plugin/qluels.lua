@@ -8,7 +8,7 @@ end
 vim.g.loaded_qluels = true
 
 ---Add a backend to qlue-ls
----Usage: :QluelsAddBackend {"service": {"name": "...", "url": "..."}, ...}
+---Usage: :QluelsAddBackend {"name": "...", "url": "...", ...}
 vim.api.nvim_create_user_command("QluelsAddBackend", function(opts)
   local ok, params = pcall(vim.fn.json_decode, opts.args)
   if not ok then
@@ -20,7 +20,7 @@ vim.api.nvim_create_user_command("QluelsAddBackend", function(opts)
   local success = lsp.add_backend(params)
 
   if success then
-    vim.notify("Backend added: " .. (params.service and params.service.name or "unknown"), vim.log.levels.INFO)
+    vim.notify("Backend added: " .. (params.name or "unknown"), vim.log.levels.INFO)
   end
 end, {
   nargs = 1,
@@ -58,6 +58,33 @@ vim.api.nvim_create_user_command("QluelsSetBackend", function(opts)
 end, {
   nargs = "?",
   desc = "Set the default SPARQL backend",
+})
+
+---List all registered backends
+---Usage: :QluelsListBackends
+vim.api.nvim_create_user_command("QluelsListBackends", function()
+  local lsp = require("qluels.lsp")
+  lsp.list_backends(function(backends, err)
+    if err then
+      vim.notify("Failed to list backends: " .. err, vim.log.levels.ERROR)
+      return
+    end
+
+    if not backends or #backends == 0 then
+      vim.notify("No backends registered", vim.log.levels.WARN)
+      return
+    end
+
+    local lines = {}
+    for _, b in ipairs(backends) do
+      local marker = b.default and " *" or "  "
+      table.insert(lines, string.format("%s %s  %s", marker, b.name, b.url))
+    end
+    vim.notify("Backends (* = default):\n" .. table.concat(lines, "\n"), vim.log.levels.INFO)
+  end)
+end, {
+  nargs = 0,
+  desc = "List all registered SPARQL backends",
 })
 
 ---Ping a backend to check availability
@@ -141,4 +168,65 @@ vim.api.nvim_create_user_command("QluelsGetDefaultSettings", function()
 end, {
   nargs = 0,
   desc = "Get default settings from qlue-ls",
+})
+
+---Display the parse tree for the current SPARQL document
+---Usage: :QluelsParseTree (use ! to skip trivia nodes)
+vim.api.nvim_create_user_command("QluelsParseTree", function(opts)
+  local lsp = require("qluels.lsp")
+  local skip_trivia = opts.bang
+
+  lsp.parse_tree(function(result, err)
+    if err then
+      vim.notify("Failed to get parse tree: " .. err, vim.log.levels.ERROR)
+      return
+    end
+
+    if not result or not result.tree then
+      vim.notify("No parse tree returned", vim.log.levels.WARN)
+      return
+    end
+
+    -- Render tree to lines
+    local lines = {}
+
+    local function render_node(node, indent)
+      local prefix = string.rep("  ", indent)
+      if node.type == "token" then
+        table.insert(lines, prefix .. node.kind .. " " .. vim.inspect(node.text))
+      else
+        table.insert(lines, prefix .. node.kind)
+        if node.children then
+          for _, child in ipairs(node.children) do
+            render_node(child, indent + 1)
+          end
+        end
+      end
+    end
+
+    render_node(result.tree, 0)
+
+    if result.timeMs then
+      table.insert(lines, "")
+      table.insert(lines, string.format("--- Parsed in %.2f ms ---", result.timeMs))
+    end
+
+    -- Display in scratch buffer
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    vim.api.nvim_set_option_value("buftype", "nofile", { scope = "local", buf = bufnr })
+    vim.api.nvim_set_option_value("swapfile", false, { scope = "local", buf = bufnr })
+    vim.api.nvim_set_option_value("bufhidden", "wipe", { scope = "local", buf = bufnr })
+    vim.api.nvim_set_option_value("modifiable", false, { scope = "local", buf = bufnr })
+    vim.api.nvim_buf_set_name(bufnr, "qluels://parse-tree")
+
+    vim.cmd("vertical rightbelow split")
+    local winnr = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(winnr, bufnr)
+    vim.keymap.set("n", "q", "<cmd>quit<CR>", { buffer = bufnr, silent = true })
+  end, skip_trivia)
+end, {
+  bang = true,
+  nargs = 0,
+  desc = "Display the SPARQL parse tree (use ! to skip trivia)",
 })

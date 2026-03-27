@@ -35,10 +35,8 @@ end
 require("qluels").setup({
   backends = {
     test_backend = {
-      service = {
-        name = "test",
-        url = "http://localhost:3030/test/query",
-      },
+      name = "test",
+      url = "http://localhost:3030/test/query",
       default = true,
     },
   },

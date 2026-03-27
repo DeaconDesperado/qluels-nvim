@@ -10,26 +10,25 @@ M.available = function()
 end
 
 ---Pick from a list of items using fzf-lua
----@param items string[] Items to pick from
+---@param items ListBackendsResponse[] Backends to pick from
 ---@param opts table Options with prompt and on_select callback
 M.pick = function(items, opts)
   opts = opts or {}
   local fzf = require("fzf-lua")
   local names = {}
-  for key, value in pairs(items) do
-    -- Convert key and value to string as needed
-    table.insert(names, value.name)
+  for _, value in pairs(items) do
+    local marker = value.default and " *" or ""
+    table.insert(names, value.name .. marker)
   end
-
-
-  vim.notify(vim.inspect(results))
 
   fzf.fzf_exec(names, {
     prompt = (opts.prompt or "Select") .. "> ",
     actions = {
       ["default"] = function(selected)
         if opts.on_select and selected and #selected > 0 then
-          opts.on_select(selected[1])
+          -- Strip the default marker before passing back
+          local name = selected[1]:gsub(" %*$", "")
+          opts.on_select(name)
         end
       end,
     },

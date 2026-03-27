@@ -22,13 +22,15 @@ language server. It provides:
 - Custom LSP actions (addBackend, updateBackend, etc.)
 - SPARQL query execution with formatted result display
 - Backend management
+- Parse tree viewer for debugging SPARQL queries
+- On-type formatting support
 - Fast development iteration with hot-reloading
 
 ==============================================================================
 2. REQUIREMENTS                                         *qluels-requirements*
 
 - Neovim 0.8.0 or later
-- qlue-ls language server (https://github.com/IoannisNezis/Qlue-ls)
+- qlue-ls v2.0+ language server (https://github.com/IoannisNezis/Qlue-ls)
 - plenary.nvim (optional, for running tests)
 
 ==============================================================================
@@ -41,10 +43,8 @@ Using lazy.nvim: >lua
         require("qluels").setup({
           backends = {
             wikidata = {
-              service = {
-                name = "wikidata",
-                url = "https://query.wikidata.org/sparql",
-              },
+              name = "wikidata",
+              url = "https://query.wikidata.org/sparql",
               default = true,
             },
           },
@@ -83,11 +83,10 @@ options:
       -- Pre-configured SPARQL backends
       backends = {
         wikidata = {
-          service = {
-            name = "wikidata",
-            url = "https://query.wikidata.org/sparql",
-            healthCheckUrl = "https://query.wikidata.org/",  -- Optional
-          },
+          name = "wikidata",
+          url = "https://query.wikidata.org/sparql",
+          healthCheckUrl = "https://query.wikidata.org/",  -- Optional
+          engine = "QLever",                               -- Optional
           requestMethod = "GET",  -- "GET" or "POST"
           default = true,         -- Set as default backend
           prefixMap = {           -- Optional prefix mappings
@@ -97,11 +96,27 @@ options:
           queries = {             -- Optional completion templates
             -- Custom SPARQL queries for auto-completion
           },
+          additionalData = {},    -- Optional arbitrary data
         },
       },
 
       -- Automatically attach LSP to SPARQL files
       auto_attach = true,
+
+      -- Enable on-type formatting (default: false)
+      -- When enabled, typing ';' or '.' triggers automatic formatting
+      on_type_formatting = false,
+
+      -- Server settings pushed to qlue-ls on attach
+      -- See qlue-ls documentation for available settings
+      settings = {
+        format = {
+          keep_empty_lines = false,
+          align_predicates = true,
+          capitalize_keywords = true,
+        },
+        auto_line_break = false,
+      },
 
       -- Result buffer display configuration
       result_buffer = {
@@ -114,15 +129,17 @@ options:
 Backend Configuration ~
 
 Each backend must have:
-- `service.name` (string): Unique identifier for the backend
-- `service.url` (string): SPARQL endpoint URL
+- `name` (string): Unique identifier for the backend
+- `url` (string): SPARQL endpoint URL
 
 Optional fields:
-- `service.healthCheckUrl` (string): URL for health checks
+- `healthCheckUrl` (string): URL for health checks
+- `engine` (string): SPARQL engine type ("QLever", "GraphDB", etc.)
 - `requestMethod` ("GET"|"POST"): HTTP method for queries
 - `default` (boolean): Whether this is the default backend
 - `prefixMap` (table): Prefix to URI mappings
 - `queries` (table): Custom completion query templates
+- `additionalData` (table): Arbitrary data to attach to the backend
 
 ==============================================================================
 5. COMMANDS                                                 *qluels-commands*
@@ -132,11 +149,14 @@ Optional fields:
     containing the backend configuration.
 
     Example: >vim
-        :QluelsAddBackend {"service": {"name": "dbpedia", "url": "https://dbpedia.org/sparql"}, "default": true}
+        :QluelsAddBackend {"name": "dbpedia", "url": "https://dbpedia.org/sparql", "default": true}
 <
 
+*:QluelsListBackends*
+    List all registered backends. The default backend is marked with `*`.
+
 *:QluelsSetBackend* {name}
-    Set the active SPARQL backend.
+    Set the active SPARQL backend. Without a name, opens a picker to choose.
 
     Example: >vim
         :QluelsSetBackend wikidata
@@ -150,23 +170,30 @@ Optional fields:
         :QLuelsPingBackend wikidata
 <
 
-*:QluelsExecute [{accessToken}]
-    Execute the entire current buffer as a SPARQL query against the currently active backend. 
-    If an access token is provided, it will be forwarded as the Authorization header for the
-    query 
+*:QluelsExecute* [{accessToken}]
+    Execute the entire current buffer as a SPARQL query against the currently
+    active backend. If an access token is provided, it will be forwarded as
+    the Authorization header for the query.
 
     Example: >vim
-        :QluelsExecute abcxyz 
+        :QluelsExecute abcxyz
 <
 
 *:QluelsExecuteSelection* [{accessToken}]
-    Execute the current visual selection as a SPARQL query against the currently active backend.  
-    If an access token is provided, it will be forwarded as the Authorization header for the
-    query 
-
+    Execute the current visual selection as a SPARQL query against the
+    currently active backend.
 
     Example: >vim
         :'<,'>QluelsExecuteSelection abcxyz
+<
+
+*:QluelsParseTree*
+    Display the SPARQL parse tree for the current buffer in a vertical
+    split. Use `!` to skip trivia nodes (whitespace, comments).
+
+    Example: >vim
+        :QluelsParseTree
+        :QluelsParseTree!
 <
 
 *:QluelsCloseResults*
@@ -223,8 +250,8 @@ qluels.lsp.ping_backend({name}, {callback}, {bufnr})
     Returns: ~
         (boolean) Whether the request was sent
 
-qluels.lsp.execute_query({callback}, {bufnr}, {max_result_size}, {result_offset})
-                                            *qluels.lsp.execute_query()*
+qluels.lsp.execute_operation({callback}, {bufnr}, {max_result_size}, {result_offset})
+                                        *qluels.lsp.execute_operation()*
     Execute a SPARQL query from a text document.
     The query is read from the buffer contents by the server.
 
@@ -237,13 +264,25 @@ qluels.lsp.execute_query({callback}, {bufnr}, {max_result_size}, {result_offset}
     Returns: ~
         (boolean) Whether the request was sent
 
-qluels.query.execute_buffer_query({backend}, {bufnr})
+qluels.lsp.parse_tree({callback}, {skip_trivia}, {bufnr})
+                                              *qluels.lsp.parse_tree()*
+    Retrieve the SPARQL parse tree for a document.
+
+    Parameters: ~
+        {callback}    (function) Called with (result, err)
+        {skip_trivia} (boolean|nil) Skip trivia nodes
+        {bufnr}       (number|nil) Buffer number (default: current)
+
+    Returns: ~
+        (boolean) Whether the request was sent
+
+qluels.query.execute_buffer_query({access_token}, {bufnr})
                                       *qluels.query.execute_buffer_query()*
     Execute the current buffer as a SPARQL query.
 
     Parameters: ~
-        {backend} (string|nil) Backend name (nil for default)
-        {bufnr}   (number|nil) Buffer number (default: current)
+        {access_token} (string|nil) Access token for auth
+        {bufnr}        (number|nil) Buffer number (default: current)
 
 qluels.query.execute_visual_query({backend})
                                       *qluels.query.execute_visual_query()*

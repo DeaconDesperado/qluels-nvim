@@ -5,6 +5,7 @@ local M = {}
 ---@class ListBackendsResponse
 ---@field name string
 ---@field url string
+---@field default boolean
 
 ---Get the qlue-ls client for the current buffer
 ---@param bufnr? number Buffer number (0 or nil for current)
@@ -363,6 +364,45 @@ M.identify_operation_type = function(callback, bufnr)
       callback(result.operationType, nil)
     else
       callback(nil, nil)
+    end
+  end, bufnr)
+
+  return true
+end
+
+---Retrieve the parse tree for a SPARQL document
+---Sends a qlueLs/parseTree request
+---@param callback fun(result?: table, err?: string) Callback with parse tree result
+---@param skip_trivia? boolean If true, omit trivia nodes from the tree
+---@param bufnr? number Buffer number (0 or nil for current)
+---@return boolean success Whether the request was sent
+M.parse_tree = function(callback, skip_trivia, bufnr)
+  bufnr = bufnr or 0
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  local client = M.get_client(bufnr)
+  if not client then
+    vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
+    return false
+  end
+
+  local params = {
+    textDocument = {
+      uri = vim.uri_from_bufnr(bufnr)
+    }
+  }
+
+  if skip_trivia then
+    params.skipTrivia = true
+  end
+
+  client:request("qlueLs/parseTree", params, function(err, result)
+    if err then
+      callback(nil, err.message or "Unknown error")
+    else
+      callback(result, nil)
     end
   end, bufnr)
 

@@ -70,7 +70,7 @@ local function check_backends()
     -- List all backends
     for name, backend in pairs(config.current.backends) do
       local marker = backend.default and " (default)" or ""
-      vim.health.info("  - " .. name .. marker .. ": " .. backend.service.url)
+      vim.health.info("  - " .. name .. marker .. ": " .. backend.url)
     end
   else
     vim.health.warn(

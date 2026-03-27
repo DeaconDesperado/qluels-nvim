@@ -20,10 +20,8 @@ describe("qluels.lsp", function()
   describe("add_backend", function()
     it("returns false when qlue-ls is not attached", function()
       local params = {
-        service = {
-          name = "test",
-          url = "http://localhost/sparql",
-        },
+        name = "test",
+        url = "http://localhost/sparql",
       }
 
       local success = lsp.add_backend(params)
@@ -106,6 +104,18 @@ describe("qluels.lsp", function()
   describe("identify_operation_type", function()
     it("returns false when qlue-ls is not attached", function()
       local success = lsp.identify_operation_type(function() end)
+      assert.is_false(success)
+    end)
+  end)
+
+  describe("parse_tree", function()
+    it("returns false when qlue-ls is not attached", function()
+      local success = lsp.parse_tree(function() end)
+      assert.is_false(success)
+    end)
+
+    it("returns false with skip_trivia when not attached", function()
+      local success = lsp.parse_tree(function() end, true)
       assert.is_false(success)
     end)
   end)

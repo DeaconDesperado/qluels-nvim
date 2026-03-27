@@ -141,10 +141,9 @@
         # --- 5. RUST APP ---
         qlue-ls-pkg = pkgs.rustPlatform.buildRustPackage rec {
           pname = "qlue-ls";
-          version = "1.1.2-list";
+          version = "2.5.4";
           src = qlue-ls;
           cargoBuildFlags = [ "--bin" "qlue-ls" ];
-          builtType = "debug";
           cargoLock.lockFile = "${qlue-ls}/Cargo.lock";
         };
 

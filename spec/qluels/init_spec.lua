@@ -27,10 +27,8 @@ describe("qluels.init", function()
       init.setup({
         backends = {
           wikidata = {
-            service = {
-              name = "wikidata",
-              url = "https://query.wikidata.org/sparql",
-            },
+            name = "wikidata",
+            url = "https://query.wikidata.org/sparql",
             default = true,
           },
         },
@@ -96,15 +94,28 @@ describe("qluels.init", function()
       init.setup({
         backends = {
           test = {
-            service = {
-              name = "test",
-              url = "http://localhost/sparql",
-            },
+            name = "test",
+            url = "http://localhost/sparql",
           },
         },
       })
 
       -- Check that LspAttach autocommand exists
+      local autocmds = vim.api.nvim_get_autocmds({
+        group = "QluelsBackendSetup",
+      })
+
+      assert.is_true(#autocmds > 0)
+      assert.equals("LspAttach", autocmds[1].event)
+    end)
+
+    it("creates LspAttach autocommand when settings are configured", function()
+      init.setup({
+        settings = {
+          format = { keep_empty_lines = true },
+        },
+      })
+
       local autocmds = vim.api.nvim_get_autocmds({
         group = "QluelsBackendSetup",
       })

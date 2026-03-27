@@ -17,7 +17,8 @@ M.pick = function(items, opts)
   vim.ui.select(items, {
     prompt = opts.prompt or "Select item",
     format_item = function(item)
-      return item.name
+      local marker = item.default and " *" or ""
+      return item.name .. marker
     end,
   }, function(selected)
     if opts.on_select then

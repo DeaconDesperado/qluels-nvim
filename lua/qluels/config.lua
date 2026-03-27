@@ -3,26 +3,26 @@
 ---@field backends? table<string, QluelsBackend> Pre-configured backends
 ---@field auto_attach? boolean Automatically attach LSP to SPARQL files
 ---@field result_buffer? QluelsResultBufferConfig Result buffer display options
+---@field on_type_formatting? boolean Enable on-type formatting (default: false)
+---@field settings? table Server settings to push on attach (format, completion, etc.)
 
 ---@class QluelsServer
----@field capabilities? table|nil The client capabilities. 
----@field filetypes? table The filetypes to activate for by default 
+---@field capabilities? table|nil The client capabilities.
+---@field filetypes? table The filetypes to activate for by default
 ---@field on_attach fun(client: vim.lsp.Client, bufnr: number) | nil The function executed when the LSP client attaches to a buffer.
-
----@class QluelsBackend
----@field service QluelsService Service configuration
----@field requestMethod? "GET"|"POST" HTTP method for queries
----@field default? boolean Set as default backend
----@field prefixMap? table<string, string> Prefix mappings
----@field queries? table<string, string> Completion query templates
 
 ---@alias QluelsEngine "QLever"|"GraphDB"|"Virtuoso"|"MillenniumDB"|"Blazegraph"|"Jena"
 
----@class QluelsService
+---@class QluelsBackend
 ---@field name string Backend identifier
 ---@field url string SPARQL endpoint URL
 ---@field healthCheckUrl? string Optional health check URL
 ---@field engine? QluelsEngine SPARQL engine type for engine-specific optimizations
+---@field requestMethod? "GET"|"POST" HTTP method for queries
+---@field default? boolean Set as default backend
+---@field prefixMap? table<string, string> Prefix mappings
+---@field queries? table<string, string> Completion query templates
+---@field additionalData? table Arbitrary data to attach to the backend
 
 ---@class QluelsResultBufferConfig
 ---@field position "right"|"left"|"above"|"below" Split position
@@ -39,6 +39,8 @@ M.defaults = {
   },
   backends = {},
   auto_attach = true,
+  on_type_formatting = false,
+  settings = nil,
   result_buffer = {
     position = "below",
     size = nil, -- Auto-size based on content
@@ -59,16 +61,12 @@ M.validate_backend = function(backend_name, backend)
     return false, "Backend must be a table"
   end
 
-  if type(backend.service) ~= "table" then
-    return false, "Backend service must be a table"
+  if type(backend.name) ~= "string" or backend.name == "" then
+    return false, "Backend name must be a non-empty string"
   end
 
-  if type(backend.service.name) ~= "string" or backend.service.name == "" then
-    return false, "Backend service.name must be a non-empty string"
-  end
-
-  if type(backend.service.url) ~= "string" or backend.service.url == "" then
-    return false, "Backend service.url must be a non-empty string"
+  if type(backend.url) ~= "string" or backend.url == "" then
+    return false, "Backend url must be a non-empty string"
   end
 
   if backend.requestMethod ~= nil then
@@ -87,6 +85,10 @@ M.validate_backend = function(backend_name, backend)
 
   if backend.queries ~= nil and type(backend.queries) ~= "table" then
     return false, "Backend queries must be a table"
+  end
+
+  if backend.additionalData ~= nil and type(backend.additionalData) ~= "table" then
+    return false, "Backend additionalData must be a table"
   end
 
   return true, nil
@@ -116,6 +118,14 @@ M.validate = function(config)
 
   if config.auto_attach ~= nil and type(config.auto_attach) ~= "boolean" then
     return false, "auto_attach must be a boolean"
+  end
+
+  if config.on_type_formatting ~= nil and type(config.on_type_formatting) ~= "boolean" then
+    return false, "on_type_formatting must be a boolean"
+  end
+
+  if config.settings ~= nil and type(config.settings) ~= "table" then
+    return false, "settings must be a table"
   end
 
   if config.result_buffer ~= nil then
