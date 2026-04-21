@@ -109,6 +109,19 @@ describe("qluels.init", function()
       assert.equals("LspAttach", autocmds[1].event)
     end)
 
+    it("creates LspAttach autocommand when on_type_formatting is enabled", function()
+      init.setup({
+        on_type_formatting = true,
+      })
+
+      local autocmds = vim.api.nvim_get_autocmds({
+        group = "QluelsBackendSetup",
+      })
+
+      assert.is_true(#autocmds > 0)
+      assert.equals("LspAttach", autocmds[1].event)
+    end)
+
     it("creates LspAttach autocommand when settings are configured", function()
       init.setup({
         settings = {
