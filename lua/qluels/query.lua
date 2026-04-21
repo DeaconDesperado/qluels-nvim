@@ -65,6 +65,55 @@ M.create_result_buffer = function()
   return M.result_bufnr, M.result_winnr
 end
 
+---Format UPDATE operation results
+---@param update_steps table[] Array of update step results from the server
+---@return string[] lines Formatted result lines
+---@return table highlights List of highlight entries
+M.format_update_results = function(update_steps)
+  local lines = {}
+  local highlights = {}
+
+  for i, step in ipairs(update_steps) do
+    local separator = string.format("-[ UPDATE %d ]", i)
+    separator = separator .. string.rep("-", math.max(0, 60 - #separator))
+    table.insert(lines, separator)
+
+    table.insert(lines, string.format("Status      | %s", step.status or "unknown"))
+
+    if step.deltaTriples then
+      table.insert(lines, "")
+      table.insert(lines, string.format("%-14s %8s %8s %8s", "Delta Triples", "deleted", "inserted", "total"))
+      local categories = { "operation", "before", "after", "difference" }
+      for _, cat in ipairs(categories) do
+        local d = step.deltaTriples[cat]
+        if d then
+          table.insert(lines, string.format("  %-12s %8d %8d %8d", cat, d.deleted, d.inserted, d.total))
+        end
+      end
+    end
+
+    if step.time then
+      table.insert(lines, "")
+      table.insert(lines, "Timing (ms):")
+      table.insert(lines, string.format("  total       %d", step.time.total or 0))
+      table.insert(lines, string.format("  planning    %d", step.time.planning or 0))
+      table.insert(lines, string.format("  where       %d", step.time["where"] or 0))
+      if step.time.update then
+        table.insert(lines, string.format("  update      %d", step.time.update.total or 0))
+        table.insert(lines, string.format("    prepare   %d", step.time.update.preparation or 0))
+        table.insert(lines, string.format("    delete    %d", step.time.update.delete or 0))
+        table.insert(lines, string.format("    insert    %d", step.time.update.insert or 0))
+      end
+    end
+
+    table.insert(lines, "")
+  end
+
+  table.insert(lines, string.format("(%d update step(s))", #update_steps))
+
+  return lines, highlights
+end
+
 ---Format query results in expanded display format (like psql \x)
 ---@param results table Query results from LSP server
 ---@param viewport_width? number Width of the viewport (default: 80)
@@ -73,9 +122,13 @@ end
 M.format_results = function(results, viewport_width)
   local lines = {}
   local highlights = {}
-  local queryResults = results.queryResult
   viewport_width = viewport_width or 80
 
+  if results.updateResult then
+    return M.format_update_results(results.updateResult)
+  end
+
+  local queryResults = results.queryResult
   if type(queryResults) == "table" then
     -- Check if it's a SPARQL results format
     if queryResults.result.head and queryResults.result.results then
