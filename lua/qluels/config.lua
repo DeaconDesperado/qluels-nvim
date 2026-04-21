@@ -1,10 +1,51 @@
+---@class QluelsFormatSettings
+---@field align_predicates? boolean Align predicates in triple patterns (default: true)
+---@field align_prefixes? boolean Align PREFIX declarations (default: false)
+---@field separate_prologue? boolean Insert blank line after PREFIX/BASE declarations (default: false)
+---@field capitalize_keywords? boolean Capitalize SPARQL keywords (default: true)
+---@field insert_spaces? boolean Use spaces for indentation (default: true)
+---@field tab_size? number Number of spaces per tab (default: 2)
+---@field where_new_line? boolean Place WHERE on a new line (default: false)
+---@field filter_same_line? boolean Keep FILTER on the same line as triple (default: true)
+---@field compact? number|nil Compact format threshold (nil to disable)
+---@field line_length? number Maximum line length before wrapping SELECT clause (default: 120)
+---@field contract_triples? boolean Use semicolon shorthand for same-subject triples on format (default: false)
+---@field keep_empty_lines? boolean Preserve intentional blank lines, collapsing consecutive ones (default: false)
+
+---@class QluelsCompletionSettings
+---@field timeout_ms? number Completion query timeout in milliseconds (default: 5000)
+---@field result_size_limit? number Maximum completion results (default: 100)
+---@field subject_completion_trigger_length? number Minimum chars before triggering subject completion (default: 3)
+---@field object_completion_suffix? boolean Append " .\n" to object completions (default: true)
+---@field variable_completion_limit? number|nil Max variable completions (nil for unlimited)
+---@field same_subject_semicolon? boolean Transform same-subject completions to semicolon notation (default: true)
+
+---@class QluelsPrefixesSettings
+---@field add_missing? boolean Automatically add missing prefix declarations (default: true)
+---@field remove_unused? boolean Automatically remove unused prefix declarations (default: false)
+
+---@class QluelsReplacement
+---@field pattern string Regex pattern to match
+---@field replacement string Replacement string
+
+---@class QluelsReplacementsSettings
+---@field object_variable? QluelsReplacement[] Patterns for generating variable names from predicates
+
+---@class QluelsSettings
+---@field format? QluelsFormatSettings Formatter settings
+---@field completion? QluelsCompletionSettings Completion settings
+---@field prefixes? QluelsPrefixesSettings Prefix management settings
+---@field replacements? QluelsReplacementsSettings Variable name replacement patterns
+---@field auto_line_break? boolean Auto-insert line break after ; or . following valid triple (default: false)
+
 ---@class QluelsConfig
 ---@field server QluelsServer Settings for the language server itself
 ---@field backends? table<string, QluelsBackend> Pre-configured backends
 ---@field auto_attach? boolean Automatically attach LSP to SPARQL files
 ---@field result_buffer? QluelsResultBufferConfig Result buffer display options
 ---@field on_type_formatting? boolean Enable on-type formatting (default: false)
----@field settings? table Server settings to push on attach (format, completion, etc.)
+---@field semantic_highlighting? boolean Enable semantic token highlighting (default: true)
+---@field settings? QluelsSettings Server settings to push on attach
 
 ---@class QluelsServer
 ---@field capabilities? table|nil The client capabilities.
@@ -40,6 +81,7 @@ M.defaults = {
   backends = {},
   auto_attach = true,
   on_type_formatting = false,
+  semantic_highlighting = true,
   settings = nil,
   result_buffer = {
     position = "below",
@@ -122,6 +164,10 @@ M.validate = function(config)
 
   if config.on_type_formatting ~= nil and type(config.on_type_formatting) ~= "boolean" then
     return false, "on_type_formatting must be a boolean"
+  end
+
+  if config.semantic_highlighting ~= nil and type(config.semantic_highlighting) ~= "boolean" then
+    return false, "semantic_highlighting must be a boolean"
   end
 
   if config.settings ~= nil and type(config.settings) ~= "table" then

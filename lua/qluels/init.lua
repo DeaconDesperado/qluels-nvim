@@ -49,6 +49,28 @@ M.setup = function(opts)
   -- Store a flag that we've been set up
   vim.g.qluels_setup_complete = true
 
+  -- Set up SPARQL semantic token highlight groups
+  if config.current.semantic_highlighting then
+    local semantic_links = {
+      ["@lsp.type.keyword.sparql"]   = "Keyword",
+      ["@lsp.type.function.sparql"]  = "Function",
+      ["@lsp.type.variable.sparql"]  = "Identifier",
+      ["@lsp.type.string.sparql"]    = "String",
+      ["@lsp.type.number.sparql"]    = "Number",
+      ["@lsp.type.comment.sparql"]   = "Comment",
+      ["@lsp.type.operator.sparql"]  = "Operator",
+      ["@lsp.type.namespace.sparql"] = "Include",
+    }
+    for group, link in pairs(semantic_links) do
+      vim.api.nvim_set_hl(0, group, { link = link })
+    end
+  else
+    local token_types = { "keyword", "function", "variable", "string", "number", "comment", "operator", "namespace" }
+    for _, tt in ipairs(token_types) do
+      vim.api.nvim_set_hl(0, "@lsp.type." .. tt .. ".sparql", {})
+    end
+  end
+
   -- Auto-register configured backends and push settings when LSP attaches
   local has_backends = next(config.current.backends)
   local has_settings = config.current.settings ~= nil

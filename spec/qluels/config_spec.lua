@@ -192,6 +192,36 @@ describe("qluels.config", function()
       assert.matches("on_type_formatting", err)
     end)
 
+    it("accepts semantic_highlighting = true", function()
+      local cfg = {
+        semantic_highlighting = true,
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("accepts semantic_highlighting = false", function()
+      local cfg = {
+        semantic_highlighting = false,
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("rejects invalid semantic_highlighting", function()
+      local cfg = {
+        semantic_highlighting = "yes",
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_false(valid)
+      assert.matches("semantic_highlighting", err)
+    end)
+
     it("accepts settings option", function()
       local cfg = {
         settings = {
@@ -246,6 +276,18 @@ describe("qluels.config", function()
       local success, err = config.setup(invalid_config)
       assert.is_false(success)
       assert.is_not_nil(err)
+    end)
+
+    it("defaults semantic_highlighting to true", function()
+      local success = config.setup({})
+      assert.is_true(success)
+      assert.is_true(config.current.semantic_highlighting)
+    end)
+
+    it("allows disabling semantic_highlighting", function()
+      local success = config.setup({ semantic_highlighting = false })
+      assert.is_true(success)
+      assert.is_false(config.current.semantic_highlighting)
     end)
   end)
 end)

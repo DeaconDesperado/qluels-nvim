@@ -20,13 +20,24 @@ local function check_executable()
   if vim.fn.executable("qlue-ls") == 1 then
     vim.health.ok("qlue-ls executable found in PATH")
 
-    -- Try to get version
     local handle = io.popen("qlue-ls --version 2>&1")
     if handle then
-      local version = handle:read("*a")
+      local version_output = handle:read("*a")
       handle:close()
-      if version and version ~= "" then
-        vim.health.info("Version: " .. vim.trim(version))
+      if version_output and version_output ~= "" then
+        local version_str = vim.trim(version_output)
+        vim.health.info("Version: " .. version_str)
+
+        local major, minor, patch = version_str:match("(%d+)%.(%d+)%.(%d+)")
+        if major then
+          major, minor, patch = tonumber(major), tonumber(minor), tonumber(patch)
+          if major < 2 or (major == 2 and minor < 6) then
+            vim.health.warn(
+              string.format("qlue-ls %d.%d.%d is older than 2.6.0; some features (semantic tokens) are unavailable", major, minor, patch),
+              { "Update qlue-ls to 2.6.0 or later for full feature support" }
+            )
+          end
+        end
       end
     end
   else
@@ -94,6 +105,37 @@ local function check_lsp()
   end
 end
 
+---Check semantic token support
+local function check_semantic_tokens()
+  local ok, cfg = pcall(require, "qluels.config")
+  if not ok then return end
+
+  if cfg.current.semantic_highlighting == false then
+    vim.health.info("Semantic highlighting is disabled in configuration")
+    return
+  end
+
+  local clients = vim.lsp.get_clients({ name = constants.QLUE_IDENTITY })
+  if #clients == 0 then
+    vim.health.info("No active qlue-ls client to check semantic tokens (open a SPARQL file first)")
+    return
+  end
+
+  for _, client in ipairs(clients) do
+    local caps = client.server_capabilities
+    if caps and caps.semanticTokensProvider then
+      vim.health.ok("Semantic tokens: server advertises support")
+      if caps.semanticTokensProvider.legend then
+        local types = caps.semanticTokensProvider.legend.tokenTypes or {}
+        vim.health.info("  Token types: " .. table.concat(types, ", "))
+      end
+      return
+    end
+  end
+
+  vim.health.warn("Semantic tokens: server does not advertise support (upgrade to qlue-ls >= 2.6.0)")
+end
+
 ---Check dependencies
 local function check_dependencies()
   -- Check for plenary if testing
@@ -116,6 +158,7 @@ M.check = function()
   check_executable()
   check_backends()
   check_lsp()
+  check_semantic_tokens()
   check_dependencies()
 end
 

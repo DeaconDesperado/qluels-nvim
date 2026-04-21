@@ -143,6 +143,71 @@ describe("qluels.init", function()
     end)
   end)
 
+  describe("semantic highlighting", function()
+    local semantic_groups = {
+      "@lsp.type.keyword.sparql",
+      "@lsp.type.function.sparql",
+      "@lsp.type.variable.sparql",
+      "@lsp.type.string.sparql",
+      "@lsp.type.number.sparql",
+      "@lsp.type.comment.sparql",
+      "@lsp.type.operator.sparql",
+      "@lsp.type.namespace.sparql",
+    }
+
+    before_each(function()
+      for _, group in ipairs(semantic_groups) do
+        vim.api.nvim_set_hl(0, group, {})
+      end
+    end)
+
+    it("sets default highlight groups when semantic_highlighting is true", function()
+      init.setup({ semantic_highlighting = true })
+
+      local hl = vim.api.nvim_get_hl(0, { name = "@lsp.type.keyword.sparql" })
+      assert.is_not_nil(hl.link)
+    end)
+
+    it("sets highlight groups by default (semantic_highlighting defaults to true)", function()
+      init.setup()
+
+      local hl = vim.api.nvim_get_hl(0, { name = "@lsp.type.namespace.sparql" })
+      assert.is_not_nil(hl.link)
+    end)
+
+    it("clears highlight groups when semantic_highlighting is false", function()
+      -- First set them up
+      init.setup({ semantic_highlighting = true })
+      -- Then disable
+      init.setup({ semantic_highlighting = false })
+
+      local hl = vim.api.nvim_get_hl(0, { name = "@lsp.type.keyword.sparql", link = false })
+      -- Should be empty (no fg, no bg, no link)
+      assert.is_nil(hl.link)
+      assert.is_nil(hl.fg)
+    end)
+
+    it("links all 8 semantic token types", function()
+      init.setup({ semantic_highlighting = true })
+
+      local expected = {
+        ["@lsp.type.keyword.sparql"]   = "Keyword",
+        ["@lsp.type.function.sparql"]  = "Function",
+        ["@lsp.type.variable.sparql"]  = "Identifier",
+        ["@lsp.type.string.sparql"]    = "String",
+        ["@lsp.type.number.sparql"]    = "Number",
+        ["@lsp.type.comment.sparql"]   = "Comment",
+        ["@lsp.type.operator.sparql"]  = "Operator",
+        ["@lsp.type.namespace.sparql"] = "Include",
+      }
+
+      for group, target in pairs(expected) do
+        local hl = vim.api.nvim_get_hl(0, { name = group })
+        assert.equals(target, hl.link, group .. " should link to " .. target)
+      end
+    end)
+  end)
+
   describe("reload", function()
     it("clears module cache and reloads", function()
       -- Setup first
