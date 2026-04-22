@@ -46,6 +46,7 @@
 ---@field on_type_formatting? boolean Enable on-type formatting (default: false)
 ---@field semantic_highlighting? boolean Enable semantic token highlighting (default: true)
 ---@field settings? QluelsSettings Server settings to push on attach
+---@field query_dir? string Directory for saved SPARQL queries, relative to project root (default: ".qluels")
 
 ---@class QluelsServer
 ---@field capabilities? table|nil The client capabilities.
@@ -87,6 +88,7 @@ M.defaults = {
     position = "below",
     size = nil, -- Auto-size based on content
   },
+  query_dir = ".qluels",
 }
 
 ---Validate a backend configuration
@@ -188,6 +190,12 @@ M.validate = function(config)
 
     if config.result_buffer.size ~= nil and type(config.result_buffer.size) ~= "number" then
       return false, "result_buffer.size must be a number"
+    end
+  end
+
+  if config.query_dir ~= nil then
+    if type(config.query_dir) ~= "string" or config.query_dir == "" then
+      return false, "query_dir must be a non-empty string"
     end
   end
 

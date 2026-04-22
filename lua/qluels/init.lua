@@ -178,5 +178,6 @@ end
 M.config = config
 M.lsp = lsp
 M.query = query
+M.library = require("qluels.library")
 
 return M

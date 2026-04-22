@@ -170,6 +170,26 @@ end, {
   desc = "Get default settings from qlue-ls",
 })
 
+---Pick and execute a query from the query library
+---Usage: :QluelsLibraryExecute [access_token]
+vim.api.nvim_create_user_command("QluelsLibraryExecute", function(opts)
+  local access_token = opts.args ~= "" and opts.args or nil
+  require("qluels.library").pick_and_execute(access_token)
+end, {
+  nargs = "?",
+  desc = "Pick and execute a SPARQL query from the library",
+})
+
+---Pick and load a query from the query library into a buffer
+---Usage: :QluelsLibraryLoad (use ! to open in split)
+vim.api.nvim_create_user_command("QluelsLibraryLoad", function(opts)
+  require("qluels.library").pick_and_load(opts.bang)
+end, {
+  bang = true,
+  nargs = 0,
+  desc = "Pick and load a SPARQL query from the library (! for split)",
+})
+
 ---Display the parse tree for the current SPARQL document
 ---Usage: :QluelsParseTree (use ! to skip trivia nodes)
 vim.api.nvim_create_user_command("QluelsParseTree", function(opts)

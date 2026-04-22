@@ -7,6 +7,7 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 - **Custom LSP Actions**: Support for qlue-ls custom LSP actions like `addBackend`, `updateBackend`, `pingBackend`, etc.
 - **Query Execution**: Execute SPARQL queries from buffers with formatted table results
 - **Backend Management**: Configure and manage multiple SPARQL endpoints, including via popular pickers (telescope, fzf-lua)
+- **Query Library**: Maintain a project-local directory of saved SPARQL queries, browse them via pickers, and execute or load them
 - **Parse Tree Viewer**: Inspect the SPARQL parse tree for debugging
 - **On-Type Formatting**: Automatic formatting on `;`, `.` triggers (opt-in)
 - **Settings Forwarding**: Push formatting/completion settings to qlue-ls on attach
@@ -94,6 +95,9 @@ require("qluels").setup({
     position = "below",  -- "right", "left", "above", "below"
     size = nil,          -- nil for auto-size, or a number for fixed size
   },
+
+  -- Query library directory, relative to project root (default: ".qluels")
+  query_dir = ".qluels",
 })
 ```
 
@@ -104,6 +108,31 @@ See the [Qluels documentation](https://docs.qlue-ls.com/04_configuration/) for b
 Backends configured via lua configuration tables are additive to any defined in qlue-ls's own configuration (the
 plugin calls `addBackend` for every entry).  This allows you to store project local backends in your repository's
 `qlue-ls.[yml|toml]` while storing global ones in your nvim configuration.
+
+### Query Library
+
+The query library lets you maintain a directory of saved SPARQL queries alongside your project, similar to how other tools keep project-local configuration. By default, the plugin looks for `.sparql` and `.rq` files in a `.qluels/` directory at your project root.
+
+```
+my-project/
+  .qluels/
+    count-triples.sparql
+    popular-artists.rq
+    wikidata/
+      city-population.sparql
+  qlue-ls.yaml
+  ...
+```
+
+Use `:QluelsLibraryExecute` to browse the library and run a query against the active backend, or `:QluelsLibraryLoad` to open a query file for editing. Both commands use your configured picker (telescope, fzf-lua, snacks, or the built-in `vim.ui.select` fallback). Subdirectories are supported and shown in the picker.
+
+To use a different directory, set `query_dir` in your setup:
+
+```lua
+require("qluels").setup({
+  query_dir = "sparql-queries",  -- relative to project root, or an absolute path
+})
+```
 
 ## Commands
 
@@ -117,6 +146,9 @@ plugin calls `addBackend` for every entry).  This allows you to store project lo
 | `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query |
 | `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query |
 | `:QluelsParseTree` | Display the SPARQL parse tree (use `!` to skip trivia) |
+| `:QluelsLibraryExecute [{accessToken}]` | Pick a query from the library and execute it |
+| `:QluelsLibraryLoad` | Pick a query from the library and open it in the current buffer |
+| `:QluelsLibraryLoad!` | Pick a query from the library and open it in a split |
 | `:QluelsCloseResults` | Close the results window |
 | `:QluelsGetDefaultSettings` | Get qlue-ls default settings |
 | `:QluelsReload` | Reload the plugin (development) |
@@ -144,6 +176,15 @@ plugin calls `addBackend` for every entry).  This allows you to store project lo
 
 " View parse tree without trivia (whitespace, comments)
 :QluelsParseTree!
+
+" Browse query library and execute a query
+:QluelsLibraryExecute
+
+" Browse query library and load a query into the current buffer
+:QluelsLibraryLoad
+
+" Browse query library and load a query in a split
+:QluelsLibraryLoad!
 ```
 ## Development
 
@@ -176,6 +217,7 @@ This will check:
 - qlue-ls installation
 - Configured backends
 - LSP client attachment
+- Query library directory
 - Dependencies
 
 ## Related Projects
