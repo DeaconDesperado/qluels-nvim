@@ -69,4 +69,43 @@ M.pick = function(items, opts)
   }):find()
 end
 
+---Pick from a generic list of items using telescope
+---@param items table[] Items to pick from
+---@param opts table Options: prompt, format_item(item)->string, on_select(item)
+M.pick_generic = function(items, opts)
+  opts = opts or {}
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
+  local conf = require("telescope.config").values
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local format_item = opts.format_item or tostring
+
+  pickers.new({}, {
+    prompt_title = opts.prompt or "Select",
+    finder = finders.new_table({
+      results = items,
+      entry_maker = function(item)
+        local display = format_item(item)
+        return {
+          value = item,
+          ordinal = display,
+          display = display,
+        }
+      end,
+    }),
+    sorter = conf.generic_sorter({}),
+    attach_mappings = function(prompt_bufnr, map)
+      actions.select_default:replace(function()
+        local selection = action_state.get_selected_entry()
+        actions.close(prompt_bufnr)
+        if opts.on_select and selection then
+          opts.on_select(selection.value)
+        end
+      end)
+      return true
+    end,
+  }):find()
+end
+
 return M

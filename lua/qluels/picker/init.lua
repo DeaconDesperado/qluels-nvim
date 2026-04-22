@@ -64,4 +64,24 @@ M.pick_backend = function(callback, bufnr)
   end, bufnr)
 end
 
+---@class QueryFileItem
+---@field name string Display name (filename without extension)
+---@field path string Absolute file path
+---@field relative_path string Path relative to query_dir
+
+---Pick a query file from the query library
+---@param items QueryFileItem[] Query files to pick from
+---@param opts table Options: prompt, on_select(item)
+M.pick_query = function(items, opts)
+  opts = opts or {}
+  local picker = M.get()
+  picker.pick_generic(items, {
+    prompt = opts.prompt or "Select Query",
+    format_item = function(item)
+      return item.relative_path
+    end,
+    on_select = opts.on_select,
+  })
+end
+
 return M

@@ -27,4 +27,19 @@ M.pick = function(items, opts)
   end)
 end
 
+---Pick from a generic list of items
+---@param items table[] Items to pick from
+---@param opts table Options: prompt, format_item(item)->string, on_select(item)
+M.pick_generic = function(items, opts)
+  opts = opts or {}
+  vim.ui.select(items, {
+    prompt = opts.prompt or "Select item",
+    format_item = opts.format_item or tostring,
+  }, function(selected)
+    if opts.on_select and selected then
+      opts.on_select(selected)
+    end
+  end)
+end
+
 return M

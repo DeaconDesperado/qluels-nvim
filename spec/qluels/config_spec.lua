@@ -243,6 +243,36 @@ describe("qluels.config", function()
       assert.is_false(valid)
       assert.matches("settings", err)
     end)
+
+    it("accepts valid query_dir string", function()
+      local cfg = {
+        query_dir = ".qluels",
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_true(valid)
+      assert.is_nil(err)
+    end)
+
+    it("rejects non-string query_dir", function()
+      local cfg = {
+        query_dir = 42,
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_false(valid)
+      assert.matches("query_dir", err)
+    end)
+
+    it("rejects empty string query_dir", function()
+      local cfg = {
+        query_dir = "",
+      }
+
+      local valid, err = config.validate(cfg)
+      assert.is_false(valid)
+      assert.matches("query_dir", err)
+    end)
   end)
 
   describe("setup", function()

@@ -31,4 +31,26 @@ M.pick = function(items, opts)
   })
 end
 
+---Pick from a generic list of items using snacks picker
+---@param items table[] Items to pick from
+---@param opts table Options: prompt, format_item(item)->string, on_select(item)
+M.pick_generic = function(items, opts)
+  opts = opts or {}
+  local snacks = require("snacks")
+  local format_item = opts.format_item or tostring
+
+  snacks.picker.pick({
+    prompt = opts.prompt or "Select",
+    items = items,
+    format = function(item)
+      return format_item(item)
+    end,
+    confirm = function(item)
+      if opts.on_select then
+        opts.on_select(item)
+      end
+    end,
+  })
+end
+
 return M

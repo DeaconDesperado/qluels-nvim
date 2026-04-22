@@ -136,6 +136,27 @@ local function check_semantic_tokens()
   vim.health.warn("Semantic tokens: server does not advertise support (upgrade to qlue-ls >= 2.6.0)")
 end
 
+---Check query library directory
+local function check_query_library()
+  local ok, library = pcall(require, "qluels.library")
+  if not ok then
+    vim.health.error("Could not load qluels.library module")
+    return
+  end
+
+  local dir = library.resolve_query_dir()
+  if dir and vim.fn.isdirectory(dir) == 1 then
+    local items = library.discover_queries()
+    local count = items and #items or 0
+    vim.health.ok(string.format("Query library: %s (%d queries)", dir, count))
+  else
+    vim.health.info(
+      "Query library directory not found: " .. (dir or "?"),
+      { "Create the directory or configure query_dir in setup()" }
+    )
+  end
+end
+
 ---Check dependencies
 local function check_dependencies()
   -- Check for plenary if testing
@@ -159,6 +180,7 @@ M.check = function()
   check_backends()
   check_lsp()
   check_semantic_tokens()
+  check_query_library()
   check_dependencies()
 end
 
