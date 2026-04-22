@@ -1,5 +1,7 @@
 ---fzf-lua picker adapter
 ---Provides backend selection using fzf-lua
+local fzf = require("fzf-lua")
+
 local M = {}
 
 ---Check if fzf-lua is available
@@ -14,7 +16,6 @@ end
 ---@param opts table Options with prompt and on_select callback
 M.pick = function(items, opts)
   opts = opts or {}
-  local fzf = require("fzf-lua")
   local names = {}
   for _, value in pairs(items) do
     local marker = value.default and " *" or ""
@@ -40,7 +41,6 @@ end
 ---@param opts table Options: prompt, format_item(item)->string, on_select(item)
 M.pick_generic = function(items, opts)
   opts = opts or {}
-  local fzf = require("fzf-lua")
   local format_item = opts.format_item or tostring
 
   local display_strings = {}

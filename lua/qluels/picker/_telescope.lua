@@ -1,5 +1,12 @@
 ---Telescope picker adapter
 ---Provides backend selection using telescope.nvim
+local pickers = require("telescope.pickers")
+local entry_display = require("telescope.pickers.entry_display")
+local finders = require("telescope.finders")
+local conf = require("telescope.config").values
+local actions = require("telescope.actions")
+local action_state = require("telescope.actions.state")
+
 local M = {}
 
 ---Check if telescope is available
@@ -14,12 +21,6 @@ end
 ---@param opts table Options with prompt and on_select callback
 M.pick = function(items, opts)
   opts = opts or {}
-  local pickers = require("telescope.pickers")
-  local entry_display = require("telescope.pickers.entry_display")
-  local finders = require("telescope.finders")
-  local conf = require("telescope.config").values
-  local actions = require("telescope.actions")
-  local action_state = require("telescope.actions.state")
 
   local displayer = entry_display.create {
     separator = "|",
@@ -74,11 +75,6 @@ end
 ---@param opts table Options: prompt, format_item(item)->string, on_select(item)
 M.pick_generic = function(items, opts)
   opts = opts or {}
-  local pickers = require("telescope.pickers")
-  local finders = require("telescope.finders")
-  local conf = require("telescope.config").values
-  local actions = require("telescope.actions")
-  local action_state = require("telescope.actions.state")
   local format_item = opts.format_item or tostring
 
   pickers.new({}, {

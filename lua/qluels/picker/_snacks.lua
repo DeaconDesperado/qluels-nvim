@@ -1,5 +1,7 @@
 ---snacks.nvim picker adapter
 ---Provides backend selection using snacks.nvim picker
+local snacks = require("snacks")
+
 local M = {}
 
 ---Check if snacks picker is available
@@ -14,7 +16,6 @@ end
 ---@param opts table Options with prompt and on_select callback
 M.pick = function(items, opts)
   opts = opts or {}
-  local snacks = require("snacks")
 
   snacks.picker.pick({
     prompt = opts.prompt or "Select",
@@ -36,7 +37,6 @@ end
 ---@param opts table Options: prompt, format_item(item)->string, on_select(item)
 M.pick_generic = function(items, opts)
   opts = opts or {}
-  local snacks = require("snacks")
   local format_item = opts.format_item or tostring
 
   snacks.picker.pick({
