@@ -49,11 +49,34 @@ M.setup = function(opts)
   -- Store a flag that we've been set up
   vim.g.qluels_setup_complete = true
 
-  -- Auto-register configured backends and push settings when LSP attaches
+  -- Set up SPARQL semantic token highlight groups
+  if config.current.semantic_highlighting then
+    local semantic_links = {
+      ["@lsp.type.keyword.sparql"]   = "Keyword",
+      ["@lsp.type.function.sparql"]  = "Function",
+      ["@lsp.type.variable.sparql"]  = "Identifier",
+      ["@lsp.type.string.sparql"]    = "String",
+      ["@lsp.type.number.sparql"]    = "Number",
+      ["@lsp.type.comment.sparql"]   = "Comment",
+      ["@lsp.type.operator.sparql"]  = "Operator",
+      ["@lsp.type.namespace.sparql"] = "Include",
+    }
+    for group, link in pairs(semantic_links) do
+      vim.api.nvim_set_hl(0, group, { link = link })
+    end
+  else
+    local token_types = { "keyword", "function", "variable", "string", "number", "comment", "operator", "namespace" }
+    for _, tt in ipairs(token_types) do
+      vim.api.nvim_set_hl(0, "@lsp.type." .. tt .. ".sparql", {})
+    end
+  end
+
+  -- Auto-register configured backends, push settings, and set up on-type formatting when LSP attaches
   local has_backends = next(config.current.backends)
   local has_settings = config.current.settings ~= nil
+  local has_on_type_formatting = config.current.on_type_formatting
 
-  if has_backends or has_settings then
+  if has_backends or has_settings or has_on_type_formatting then
     vim.api.nvim_create_autocmd("LspAttach", {
       group = vim.api.nvim_create_augroup("QluelsBackendSetup", { clear = true }),
       callback = function(args)
@@ -75,6 +98,27 @@ M.setup = function(opts)
           -- Set up on-type formatting if enabled
           if config.current.on_type_formatting then
             local otf_group = vim.api.nvim_create_augroup("QluelsOnTypeFormatting_" .. args.buf, { clear = true })
+            local prev_line_count = vim.api.nvim_buf_line_count(args.buf)
+
+            local function request_on_type_formatting(ch, position)
+              client:request("textDocument/onTypeFormatting", {
+                textDocument = { uri = vim.uri_from_bufnr(args.buf) },
+                position = position,
+                ch = ch,
+                options = {
+                  tabSize = vim.bo[args.buf].shiftwidth ~= 0 and vim.bo[args.buf].shiftwidth or vim.bo[args.buf].tabstop,
+                  insertSpaces = vim.bo[args.buf].expandtab,
+                },
+              }, function(err, result)
+                if result then
+                  vim.lsp.util.apply_text_edits(result, args.buf, client.offset_encoding)
+                  local edit = result[1]
+                  local new_end_col = edit.range.start.character + #edit.newText
+                  vim.api.nvim_win_set_cursor(0, { edit.range.start.line + 1, new_end_col })
+                end
+              end, args.buf)
+            end
+
             vim.api.nvim_create_autocmd("InsertCharPre", {
               group = otf_group,
               buffer = args.buf,
@@ -83,25 +127,28 @@ M.setup = function(opts)
                 if char == ";" or char == "." then
                   vim.defer_fn(function()
                     if vim.api.nvim_buf_is_valid(args.buf) then
-                      client:request("textDocument/onTypeFormatting", {
-                        textDocument = { uri = vim.uri_from_bufnr(args.buf) },
-                        position = {
-                          line = vim.fn.line(".") - 1,
-                          character = vim.fn.col("."),
-                        },
-                        ch = char,
-                        options = {
-                          tabSize = vim.bo[args.buf].tabstop,
-                          insertSpaces = vim.bo[args.buf].expandtab,
-                        },
-                      }, function(err, result)
-                        if result then
-                          vim.lsp.util.apply_text_edits(result, args.buf, client.offset_encoding)
-                        end
-                      end, args.buf)
+                      request_on_type_formatting(char, {
+                        line = vim.fn.line(".") - 1,
+                        character = vim.fn.col(".") - 1,
+                      })
                     end
                   end, 0)
                 end
+              end,
+            })
+
+            vim.api.nvim_create_autocmd("TextChangedI", {
+              group = otf_group,
+              buffer = args.buf,
+              callback = function()
+                local new_line_count = vim.api.nvim_buf_line_count(args.buf)
+                if new_line_count > prev_line_count then
+                  request_on_type_formatting("\n", {
+                    line = vim.fn.line(".") - 1,
+                    character = 0,
+                  })
+                end
+                prev_line_count = new_line_count
               end,
             })
           end

@@ -37,9 +37,16 @@
           in
             builtins.concatStringsSep "\n" lines;
 
-        loadCommon = mkPluginPath commonPlugins;
+        loadCommonOnly = mkPluginPath commonPlugins;
         loadTelescope = mkPluginPath telescopePlugins;
         loadFzfLua = mkPluginPath fzfPlugins;
+
+        initCommon = ''
+          vim.opt.termguicolors = true
+          vim.opt.expandtab = true
+          vim.opt.tabstop = 2
+          vim.opt.shiftwidth = 2
+        '';
 
         # --- 3. LUA FRAGMENTS ---
         initBlink = ''
@@ -66,7 +73,8 @@
                   vim.keymap.set('n', '<leader>b', ':QluelsSetBackend<cr>', { buffer = bufnr })
               end,
             },
-            auto_attach = true
+            auto_attach = true,
+            on_type_formatting = true
           })
         '';
 
@@ -74,9 +82,11 @@
         
         # A. Create the Config Files in the Nix Store
         # pkgs.writeText is incredibly fast (just copies string to store).
+
+
         
         telescopeLua = pkgs.writeText "init-telescope.lua" ''
-          vim.opt.termguicolors = true
+          ${initCommon} 
           ${loadTelescope}
           vim.opt.rtp:prepend(vim.fn.getcwd())
           require('telescope').setup({
@@ -87,15 +97,16 @@
         '';
 
         minimalLua = pkgs.writeText "init-minimal.lua" ''
+          ${initCommon} 
           vim.opt.termguicolors = true
-          ${loadCommon}
+          ${loadCommonOnly}
           vim.opt.rtp:prepend(vim.fn.getcwd())
           ${initQlueLS}
           ${initBlink}
         '';
 
         fzfLuaLua = pkgs.writeText "init-fzflua.lua" ''
-          vim.opt.termguicolors = true
+          ${initCommon} 
           ${loadFzfLua}
           vim.opt.rtp:prepend(vim.fn.getcwd())
           require('fzf-lua').setup()
@@ -141,7 +152,7 @@
         # --- 5. RUST APP ---
         qlue-ls-pkg = pkgs.rustPlatform.buildRustPackage rec {
           pname = "qlue-ls";
-          version = "2.5.4";
+          version = "2.6.0";
           src = qlue-ls;
           cargoBuildFlags = [ "--bin" "qlue-ls" ];
           cargoLock.lockFile = "${qlue-ls}/Cargo.lock";
