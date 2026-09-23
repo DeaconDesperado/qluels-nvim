@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     qlue-ls = {
+      # Keep the development shell wired to the sibling qlue-ls checkout.
       url = "git+file:///Users/mgthesecond/projects/foss/Qlue-ls/";
       flake = false;
     };
@@ -152,7 +153,7 @@
         # --- 5. RUST APP ---
         qlue-ls-pkg = pkgs.rustPlatform.buildRustPackage rec {
           pname = "qlue-ls";
-          version = "2.6.0";
+          version = "3.11.1";
           src = qlue-ls;
           cargoBuildFlags = [ "--bin" "qlue-ls" ];
           cargoLock.lockFile = "${qlue-ls}/Cargo.lock";

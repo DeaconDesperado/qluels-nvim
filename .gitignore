@@ -13,3 +13,5 @@ result-*
 
 .dev-env
 test.rq
+
+qlue-ls.yaml

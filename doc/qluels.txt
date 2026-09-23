@@ -24,13 +24,14 @@ language server. It provides:
 - Backend management
 - Parse tree viewer for debugging SPARQL queries
 - On-type formatting support
+- Jump navigation, rename, references, document highlights, and folding
 - Fast development iteration with hot-reloading
 
 ==============================================================================
 2. REQUIREMENTS                                         *qluels-requirements*
 
-- Neovim 0.8.0 or later
-- qlue-ls v2.0+ language server (https://github.com/IoannisNezis/Qlue-ls)
+- Neovim 0.11.0 or later
+- qlue-ls v3.11.1+ language server (https://github.com/IoannisNezis/Qlue-ls)
 - plenary.nvim (optional, for running tests)
 
 ==============================================================================
@@ -107,6 +108,10 @@ options:
       -- When enabled, typing ';' or '.' triggers automatic formatting
       on_type_formatting = false,
 
+      -- Optional editor automation
+      document_highlight = false,
+      folding = false,
+
       -- Server settings pushed to qlue-ls on attach
       -- See qlue-ls documentation for available settings
       settings = {
@@ -125,6 +130,14 @@ options:
       },
     })
 <
+
+Lua settings use snake_case. The plugin converts these names to the camelCase
+JSON fields used by qlue-ls. Backend fields and keys inside `queries` use the
+upstream camelCase names.
+
+Custom completion and hover templates remain supported. For qlue-ls 3.x,
+template variables use the `qls_*` prefix instead of `qlue_ls_*`. Tera v2 also
+requires numeric access like `prefix[0]` and components in place of macros.
 
 Backend Configuration ~
 
@@ -162,12 +175,13 @@ Optional fields:
         :QluelsSetBackend wikidata
 <
 
-*:QLuelsPingBackend* [{name}]
+*:QluelsPingBackend* [{name}]
     Ping a backend to check if it's available. If no name is provided,
-    pings the default backend.
+    pings the default backend. |:QLuelsPingBackend| remains a compatibility
+    alias for the historical capitalization.
 
     Example: >vim
-        :QLuelsPingBackend wikidata
+        :QluelsPingBackend wikidata
 <
 
 *:QluelsExecute* [{accessToken}]
@@ -199,6 +213,26 @@ Optional fields:
 *:QluelsCloseResults*
     Close the query results window.
 
+*:QluelsJump* [!]
+    Apply qlue-ls formatting/placeholder edits and jump to the next target.
+    Use `!` to jump to the previous target.
+
+*:QluelsRename* [{name}]
+    Rename the variable under the cursor, respecting SPARQL scope. Prompts for
+    the new name when omitted.
+
+*:QluelsReferences*
+    Show scoped references to the variable under the cursor in the location
+    list.
+
+*:QluelsHighlight* / *:QluelsClearHighlights*
+    Request or clear document highlights. Set `document_highlight = true` to
+    automate this on cursor hold and movement.
+
+*:QluelsFoldingEnable* / *:QluelsFoldingDisable*
+    Enable or disable LSP folding in the current SPARQL buffer. Set
+    `folding = true` to enable it automatically on attach.
+
 *:QluelsGetDefaultSettings*
     Get the default settings from the qlue-ls language server.
 
@@ -217,15 +251,17 @@ qluels.setup({opts})                                         *qluels.setup()*
     Parameters: ~
         {opts} (table|nil) Configuration options
 
-qluels.lsp.add_backend({params}, {bufnr})          *qluels.lsp.add_backend()*
+qluels.lsp.add_backend({params}, {bufnr}, {callback})
+                                                   *qluels.lsp.add_backend()*
     Add a backend to qlue-ls.
 
     Parameters: ~
         {params} (table) Backend configuration
         {bufnr}  (number|nil) Buffer number (default: current)
+        {callback} (function|nil) Called with (success, err) after registration
 
     Returns: ~
-        (boolean) Success
+        (boolean) Whether the request was sent
 
 qluels.lsp.update_default_backend({name}, {bufnr})
                                          *qluels.lsp.update_default_backend()*
@@ -249,6 +285,12 @@ qluels.lsp.ping_backend({name}, {callback}, {bufnr})
 
     Returns: ~
         (boolean) Whether the request was sent
+
+qluels.lsp.execute_query({query}, {callback}, {opts}, {bufnr})
+                                          *qluels.lsp.execute_query()*
+    Execute inline SPARQL text using the qlue-ls client attached to {bufnr}.
+    {opts} may contain max_result_size, result_offset, access_token, and
+    query_id.
 
 qluels.lsp.execute_operation({callback}, {bufnr}, {max_result_size}, {result_offset})
                                         *qluels.lsp.execute_operation()*
@@ -284,12 +326,12 @@ qluels.query.execute_buffer_query({access_token}, {bufnr})
         {access_token} (string|nil) Access token for auth
         {bufnr}        (number|nil) Buffer number (default: current)
 
-qluels.query.execute_visual_query({backend})
+qluels.query.execute_visual_query({access_token})
                                       *qluels.query.execute_visual_query()*
     Execute the visual selection as a SPARQL query.
 
     Parameters: ~
-        {backend} (string|nil) Backend name (nil for default)
+        {access_token} (string|nil) Optional backend access token
 
 qluels.query.close_results()                  *qluels.query.close_results()*
     Close the result buffer window.

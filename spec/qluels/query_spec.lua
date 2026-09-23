@@ -121,6 +121,32 @@ describe("qluels.query", function()
       assert.matches("Results:", lines[1])
     end)
 
+    it("formats ASK boolean results", function()
+      local lines = query.format_results({
+        queryResult = { timeMs = 3, result = { head = {}, boolean = false } },
+      })
+      assert.matches("ASK result: false", table.concat(lines, "\n"))
+    end)
+
+    it("formats the qlue-ls 3.11 UPDATE response envelope", function()
+      local lines = query.format_results({
+        updateResult = {
+          operations = {
+            {
+              status = "OK",
+              warnings = { "experimental" },
+              time = { total = 5, planning = 1, execution = { total = 4, evaluateWhere = 2 } },
+            },
+          },
+          time = { total = 7 },
+        },
+      })
+      local rendered = table.concat(lines, "\n")
+      assert.matches("experimental", rendered)
+      assert.matches("execution%s+4", rendered)
+      assert.matches("Total update time: 7 ms", rendered)
+    end)
+
     it("formats UPDATE results with a single step", function()
       local results = {
         updateResult = {

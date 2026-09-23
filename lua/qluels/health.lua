@@ -3,6 +3,18 @@
 local constants = require("qluels.constants")
 local M = {}
 
+local function check_neovim()
+  local version = vim.version()
+  if version.major > 0 or version.minor >= 11 then
+    vim.health.ok(string.format("Neovim %d.%d.%d", version.major, version.minor, version.patch))
+  else
+    vim.health.error(
+      string.format("Neovim %d.%d.%d is unsupported", version.major, version.minor, version.patch),
+      { "Update Neovim to 0.11.0 or later" }
+    )
+  end
+end
+
 ---Check if the plugin is properly set up
 local function check_setup()
   if vim.g.qluels_setup_complete then
@@ -31,10 +43,10 @@ local function check_executable()
         local major, minor, patch = version_str:match("(%d+)%.(%d+)%.(%d+)")
         if major then
           major, minor, patch = tonumber(major), tonumber(minor), tonumber(patch)
-          if major < 2 or (major == 2 and minor < 6) then
-            vim.health.warn(
-              string.format("qlue-ls %d.%d.%d is older than 2.6.0; some features (semantic tokens) are unavailable", major, minor, patch),
-              { "Update qlue-ls to 2.6.0 or later for full feature support" }
+          if major < 3 or (major == 3 and (minor < 11 or (minor == 11 and patch < 1))) then
+            vim.health.error(
+              string.format("qlue-ls %d.%d.%d is unsupported; qluels.nvim requires 3.11.1 or newer", major, minor, patch),
+              { "Update qlue-ls to 3.11.1 or later" }
             )
           end
         end
@@ -133,7 +145,31 @@ local function check_semantic_tokens()
     end
   end
 
-  vim.health.warn("Semantic tokens: server does not advertise support (upgrade to qlue-ls >= 2.6.0)")
+  vim.health.warn("Semantic tokens: server does not advertise support")
+end
+
+local function check_editor_features()
+  local config = require("qluels.config").current
+  local clients = vim.lsp.get_clients({ name = constants.QLUE_IDENTITY })
+  local client = clients[1]
+  if config.document_highlight then
+    if client and client:supports_method("textDocument/documentHighlight") then
+      vim.health.ok("Automatic document highlighting enabled and supported")
+    else
+      vim.health.warn("Automatic document highlighting enabled but unavailable")
+    end
+  else
+    vim.health.info("Automatic document highlighting is disabled")
+  end
+  if config.folding then
+    if client and client:supports_method("textDocument/foldingRange") then
+      vim.health.ok("LSP folding enabled and supported")
+    else
+      vim.health.warn("LSP folding enabled but unavailable")
+    end
+  else
+    vim.health.info("LSP folding is disabled")
+  end
 end
 
 ---Check query library directory
@@ -175,11 +211,13 @@ end
 M.check = function()
   vim.health.start("Qluels Plugin Health Check")
 
+  check_neovim()
   check_setup()
   check_executable()
   check_backends()
   check_lsp()
   check_semantic_tokens()
+  check_editor_features()
   check_query_library()
   check_dependencies()
 end

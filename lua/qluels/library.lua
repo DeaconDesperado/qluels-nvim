@@ -3,6 +3,7 @@ local config = require("qluels.config")
 local lsp = require("qluels.lsp")
 local query = require("qluels.query")
 local picker = require("qluels.picker")
+local project = require("qluels.project")
 
 local M = {}
 
@@ -17,7 +18,7 @@ M.resolve_query_dir = function(bufnr)
     return query_dir
   end
 
-  local root = vim.fs.root(bufnr, { ".git" }) or vim.fn.getcwd()
+  local root = project.root(bufnr)
   return root .. "/" .. query_dir
 end
 
@@ -72,13 +73,8 @@ M.execute_file_query = function(file_path, access_token)
   local display_name = vim.fn.fnamemodify(file_path, ":t")
   vim.notify("Executing " .. display_name .. "...", vim.log.levels.INFO)
 
-  local temp_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(temp_buf, 0, -1, false, lines)
-  vim.api.nvim_set_option_value("filetype", "sparql", { buf = temp_buf })
-
-  lsp.execute_operation(function(result, err)
-    vim.api.nvim_buf_delete(temp_buf, { force = true })
-
+  local context_bufnr = vim.api.nvim_get_current_buf()
+  lsp.execute_query(table.concat(lines, "\n"), function(result, err)
     if err then
       vim.notify("Query execution failed: " .. err, vim.log.levels.ERROR)
       return
@@ -90,7 +86,7 @@ M.execute_file_query = function(file_path, access_token)
     else
       vim.notify("Query returned no results", vim.log.levels.WARN)
     end
-  end, temp_buf, nil, nil, access_token)
+  end, { access_token = access_token }, context_bufnr)
 end
 
 ---Load a query file into a buffer

@@ -66,12 +66,13 @@ M.create_result_buffer = function()
 end
 
 ---Format UPDATE operation results
----@param update_steps table[] Array of update step results from the server
+---@param update_result table Current update result object (or legacy operation array)
 ---@return string[] lines Formatted result lines
 ---@return table highlights List of highlight entries
-M.format_update_results = function(update_steps)
+M.format_update_results = function(update_result)
   local lines = {}
   local highlights = {}
+  local update_steps = update_result.operations or update_result
 
   for i, step in ipairs(update_steps) do
     local separator = string.format("-[ UPDATE %d ]", i)
@@ -92,12 +93,25 @@ M.format_update_results = function(update_steps)
       end
     end
 
+    if step.warnings and #step.warnings > 0 then
+      table.insert(lines, "")
+      table.insert(lines, "Warnings:")
+      for _, warning in ipairs(step.warnings) do
+        table.insert(lines, "  " .. warning)
+      end
+    end
+
     if step.time then
       table.insert(lines, "")
       table.insert(lines, "Timing (ms):")
       table.insert(lines, string.format("  total       %d", step.time.total or 0))
       table.insert(lines, string.format("  planning    %d", step.time.planning or 0))
-      table.insert(lines, string.format("  where       %d", step.time["where"] or 0))
+      if step.time.execution then
+        table.insert(lines, string.format("  execution   %d", step.time.execution.total or 0))
+        table.insert(lines, string.format("  where       %d", step.time.execution.evaluateWhere or 0))
+      else
+        table.insert(lines, string.format("  where       %d", step.time["where"] or 0))
+      end
       if step.time.update then
         table.insert(lines, string.format("  update      %d", step.time.update.total or 0))
         table.insert(lines, string.format("    prepare   %d", step.time.update.preparation or 0))
@@ -110,6 +124,10 @@ M.format_update_results = function(update_steps)
   end
 
   table.insert(lines, string.format("(%d update step(s))", #update_steps))
+
+  if update_result.operations and update_result.time then
+    table.insert(lines, string.format("Total update time: %d ms", update_result.time.total or 0))
+  end
 
   return lines, highlights
 end
@@ -130,6 +148,19 @@ M.format_results = function(results, viewport_width)
 
   local queryResults = results.queryResult
   if type(queryResults) == "table" then
+    if not queryResults.result then
+      table.insert(lines, "Query completed without a result body")
+      return lines, highlights
+    end
+
+    if queryResults.result.boolean ~= nil then
+      table.insert(lines, "ASK result: " .. tostring(queryResults.result.boolean))
+      if queryResults.timeMs then
+        table.insert(lines, string.format("Completed in %s ms", tostring(queryResults.timeMs)))
+      end
+      return lines, highlights
+    end
+
     -- Check if it's a SPARQL results format
     if queryResults.result.head and queryResults.result.results then
       local vars = queryResults.result.head.vars or {}
@@ -424,13 +455,14 @@ M.execute_buffer_query = function(access_token, bufnr)
     else
       vim.notify("Query returned no results", vim.log.levels.WARN)
     end
-  end, bufnr)
+  end, bufnr, nil, nil, access_token)
 end
 
 ---Execute a visual selection as a SPARQL query
 ---Creates a temporary buffer with the selection and executes it
----@param backend_name? string Backend name (nil for default)
-M.execute_visual_query = function(backend_name)
+---@param access_token? string Access token for the backend
+M.execute_visual_query = function(access_token)
+  local source_bufnr = vim.api.nvim_get_current_buf()
   -- Get visual selection
   local start_pos = vim.fn.getpos("'<")
   local end_pos = vim.fn.getpos("'>")
@@ -447,16 +479,7 @@ M.execute_visual_query = function(backend_name)
 
   vim.notify("Executing query...", vim.log.levels.INFO)
 
-  -- Create a temporary scratch buffer with the selected query
-  local temp_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(temp_buf, 0, -1, false, lines)
-  vim.api.nvim_set_option_value('filetype', 'sparql', { buf = temp_buf })
-
-  -- Execute query from the temporary buffer
-  lsp.execute_operation(function(result, err)
-    -- Clean up temporary buffer
-    vim.api.nvim_buf_delete(temp_buf, { force = true })
-
+  lsp.execute_query(query, function(result, err)
     if err then
       vim.notify("Query execution failed: " .. err, vim.log.levels.ERROR)
       return
@@ -468,7 +491,7 @@ M.execute_visual_query = function(backend_name)
     else
       vim.notify("Query returned no results", vim.log.levels.WARN)
     end
-  end, temp_buf)
+  end, { access_token = access_token }, source_bufnr)
 end
 
 ---Close the result buffer window

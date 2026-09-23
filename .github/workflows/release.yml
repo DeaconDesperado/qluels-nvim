@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        neovim_version: ['nightly', 'stable']
+        neovim_version: ['v0.11.0', 'stable', 'nightly']
     steps:
       - uses: actions/checkout@v4
       - name: Run tests
@@ -21,8 +21,24 @@ jobs:
         with:
           nvim_version: ${{ matrix.neovim_version }}
 
+  integration:
+    name: qlue-ls 3.11.1 protocol smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          version: v0.11.0
+          neovim: true
+      - name: Install qlue-ls 3.11.1
+        run: cargo install --git https://github.com/IoannisNezis/Qlue-ls --tag v3.11.1 --locked
+      - name: Exercise native custom methods
+        run: nvim --headless -u NONE --cmd "set rtp+=$PWD" -l spec/integration.lua
+
   release:
-    needs: [build]
+    needs: [build, integration]
     runs-on: ubuntu-latest
     permissions:
       contents: write

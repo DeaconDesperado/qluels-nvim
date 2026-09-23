@@ -2,6 +2,25 @@ local constants = require("qluels.constants");
 ---LSP integration for qlue-ls custom actions
 local M = {}
 
+---@param err table|string|nil
+---@return string
+M.format_error = function(err)
+  if type(err) == "string" then return err end
+  if type(err) ~= "table" then return "Unknown error" end
+  local parts = { err.message or "Request failed" }
+  local data = err.data
+  if type(data) == "table" then
+    if data.type then table.insert(parts, "[" .. data.type .. "]") end
+    local detail = data.exception or data.message or data.statusText
+    if detail and detail ~= err.message then table.insert(parts, tostring(detail)) end
+    if data.statusCode then
+      table.insert(parts, string.format("HTTP %s%s", tostring(data.statusCode), data.statusText and (" " .. data.statusText) or ""))
+    end
+    if data.body and data.body ~= "" then table.insert(parts, tostring(data.body)) end
+  end
+  return table.concat(parts, ": ")
+end
+
 ---@class ListBackendsResponse
 ---@field name string
 ---@field url string
@@ -32,11 +51,12 @@ M.is_attached = function(bufnr)
 end
 
 ---Add a backend to the qlue-ls language server
----Sends a qlueLs/addBackend notification
+---Sends a qlueLs/addBackend request
 ---@param params QluelsBackend Backend configuration
 ---@param bufnr? number Buffer number (0 or nil for current)
----@return boolean success Whether the notification was sent
-M.add_backend = function(params, bufnr)
+---@param callback? fun(success: boolean, err?: string)
+---@return boolean success Whether the request was sent
+M.add_backend = function(params, bufnr, callback)
   bufnr = bufnr or 0
 
   local client = M.get_client(bufnr)
@@ -45,8 +65,12 @@ M.add_backend = function(params, bufnr)
     return false
   end
 
-  -- Send notification (fire-and-forget)
-  client:notify("qlueLs/addBackend", params)
+  local wire_params = require("qluels.config").backend_to_wire(params)
+  client:request("qlueLs/addBackend", wire_params, function(err)
+    if callback then
+      callback(err == nil, err and M.format_error(err) or nil)
+    end
+  end, bufnr)
   return true
 end
 
@@ -88,16 +112,16 @@ M.ping_backend = function(backend_name, callback, bufnr)
     return false
   end
 
-  local params = {}
+  local params = vim.empty_dict()
   if backend_name then
     params.backendName = backend_name
   end
 
   client:request("qlueLs/pingBackend", params, function(err, result)
     if err then
-      callback(false, err.message or "Unknown error")
+      callback(false, M.format_error(err))
     else
-      callback(result == true, nil)
+      callback(type(result) == "table" and result.available == true, nil)
     end
   end, bufnr)
 
@@ -118,7 +142,7 @@ M.change_settings = function(settings, bufnr)
     return false
   end
 
-  client:notify("qlueLs/changeSettings", settings)
+  client:notify("qlueLs/changeSettings", require("qluels.config").settings_to_wire(settings))
   return true
 end
 
@@ -139,9 +163,9 @@ M.get_default_settings = function(callback, bufnr)
     return false
   end
 
-  client:request("qlueLs/defaultSettings", {}, function(err, result)
+  client:request("qlueLs/defaultSettings", vim.empty_dict(), function(err, result)
     if err then
-      callback(nil, err.message or "Unknown error")
+      callback(nil, M.format_error(err))
     else
       callback(result, nil)
     end
@@ -167,9 +191,9 @@ M.list_backends = function(callback, bufnr)
     return false
   end
 
-  client:request("qlueLs/listBackends", {}, function(err, result)
+  client:request("qlueLs/listBackends", vim.empty_dict(), function(err, result)
     if err then
-      callback(nil, err.message or "Unknown error")
+      callback(nil, M.format_error(err))
     else
       callback(result, nil)
     end
@@ -225,7 +249,7 @@ M.execute_operation = function(callback, bufnr, max_result_size, result_offset, 
 
   client:request("qlueLs/executeOperation", params, function(err, result)
     if err then
-      callback(nil, err.message or "Unknown error")
+      callback(nil, M.format_error(err))
     else
       callback(result, nil)
     end
@@ -234,32 +258,59 @@ M.execute_operation = function(callback, bufnr, max_result_size, result_offset, 
   return true
 end
 
----Get the currently active default backend
----Sends a qlueLs/getBackend request
----@param callback fun(backend?: table, err?: string) Callback with backend info
----@param bufnr? number Buffer number (0 or nil for current)
----@return boolean success Whether the request was sent
-M.get_backend = function(callback, bufnr)
+---Execute an inline SPARQL query against the client attached to a context buffer.
+---@param query string
+---@param callback fun(result?: table, err?: string)
+---@param opts? table {max_result_size?, result_offset?, access_token?, query_id?}
+---@param bufnr? number Context buffer used to find the qlue-ls client
+---@return boolean
+M.execute_query = function(query, callback, opts, bufnr)
+  opts = opts or {}
   bufnr = bufnr or 0
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
   end
-
   local client = M.get_client(bufnr)
   if not client then
     vim.notify(string.format("%s is not attached to this buffer", constants.QLUE_IDENTITY), vim.log.levels.ERROR)
     return false
   end
 
-  client:request("qlueLs/getBackend", {}, function(err, result)
-    if err then
-      callback(nil, err.message or "Unknown error")
-    else
-      callback(result, nil)
-    end
-  end, bufnr)
+  local params = { query = query }
+  if opts.max_result_size then params.maxResultSize = opts.max_result_size end
+  if opts.result_offset then params.resultOffset = opts.result_offset end
+  if opts.access_token then params.accessToken = opts.access_token end
+  if opts.query_id then params.queryId = opts.query_id end
 
+  client:request("qlueLs/executeOperation", params, function(err, result)
+    callback(result, err and M.format_error(err) or nil)
+  end, bufnr)
   return true
+end
+
+---Get a backend summary. qlue-ls 3.11.1 emits an invalid JSON-RPC response for
+---qlueLs/getBackend (both result and error:null), so derive the public
+---name/url/default shape from listBackends instead.
+---@param callback fun(backend?: table, err?: string) Callback with backend info
+---@param bufnr? number Buffer number (0 or nil for current)
+---@param backend_name? string Specific backend name (nil for default)
+---@return boolean success Whether the request was sent
+M.get_backend = function(callback, bufnr, backend_name)
+  bufnr = bufnr or 0
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  return M.list_backends(function(backends, err)
+    if err then callback(nil, err); return end
+    for _, backend in ipairs(backends or {}) do
+      if (backend_name and backend.name == backend_name) or (not backend_name and backend.default) then
+        callback(backend, nil)
+        return
+      end
+    end
+    callback(nil, backend_name and ("Backend not found: " .. backend_name) or "No default backend is configured")
+  end, bufnr)
 end
 
 ---Cancel a running SPARQL query
@@ -283,9 +334,8 @@ M.cancel_query = function(query_id, bufnr)
 end
 
 ---@class JumpResult
----@field position {line: number, character: number} The position to jump to
----@field insertBefore? string Text to insert before cursor
----@field insertAfter? string Text to insert after cursor
+---@field edits table[] Text edits against the request-time document
+---@field position? {line: number, character: number} Position after applying edits
 
 ---Jump to the next or previous relevant position in the query
 ---Enables "tab navigation" within SPARQL queries
@@ -307,13 +357,15 @@ M.jump = function(callback, previous, bufnr)
   end
 
   local cursor = vim.api.nvim_win_get_cursor(0)
+  local line = vim.api.nvim_buf_get_lines(bufnr, cursor[1] - 1, cursor[1], false)[1] or ""
+  local character = vim.str_utfindex(line, client.offset_encoding, cursor[2], false)
   local params = {
     textDocument = {
       uri = vim.uri_from_bufnr(bufnr)
     },
     position = {
       line = cursor[1] - 1, -- Convert to 0-indexed
-      character = cursor[2],
+      character = character,
     },
   }
 
@@ -321,9 +373,14 @@ M.jump = function(callback, previous, bufnr)
     params.previous = true
   end
 
+  params.options = {
+    tabSize = vim.bo[bufnr].shiftwidth ~= 0 and vim.bo[bufnr].shiftwidth or vim.bo[bufnr].tabstop,
+    insertSpaces = vim.bo[bufnr].expandtab,
+  }
+
   client:request("qlueLs/jump", params, function(err, result)
     if err then
-      callback(nil, err.message or "Unknown error")
+      callback(nil, M.format_error(err))
     else
       callback(result, nil)
     end
@@ -359,7 +416,7 @@ M.identify_operation_type = function(callback, bufnr)
 
   client:request("qlueLs/identifyOperationType", params, function(err, result)
     if err then
-      callback(nil, err.message or "Unknown error")
+      callback(nil, M.format_error(err))
     elseif result then
       callback(result.operationType, nil)
     else
@@ -400,7 +457,7 @@ M.parse_tree = function(callback, skip_trivia, bufnr)
 
   client:request("qlueLs/parseTree", params, function(err, result)
     if err then
-      callback(nil, err.message or "Unknown error")
+      callback(nil, M.format_error(err))
     else
       callback(result, nil)
     end
