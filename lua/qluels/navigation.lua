@@ -2,6 +2,7 @@ local constants = require("qluels.constants")
 local lsp = require("qluels.lsp")
 
 local M = {}
+local folding_enabled = {}
 
 local function client_for(bufnr)
   local client = lsp.get_client(bufnr)
@@ -9,6 +10,28 @@ local function client_for(bufnr)
     vim.notify(constants.QLUE_IDENTITY .. " is not attached to this buffer", vim.log.levels.ERROR)
   end
   return client
+end
+
+local function make_position_params(bufnr, offset_encoding)
+  local current_win = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_get_buf(current_win) == bufnr then
+    return vim.lsp.util.make_position_params(current_win, offset_encoding)
+  end
+
+  local wins = vim.fn.win_findbuf(bufnr)
+  if #wins > 0 then
+    return vim.lsp.util.make_position_params(wins[1], offset_encoding)
+  end
+
+  local cursor = vim.api.nvim_buf_get_mark(bufnr, ".")
+  local row = math.max(cursor[1] - 1, 0)
+  return {
+    textDocument = vim.lsp.util.make_text_document_params(bufnr),
+    position = {
+      line = row,
+      character = vim.lsp.util.character_offset(bufnr, row, cursor[2], offset_encoding),
+    },
+  }
 end
 
 ---Apply the server-side jump edits and move to its post-edit position.
@@ -48,7 +71,7 @@ M.rename = function(new_name, bufnr)
   if not client then return end
 
   local function request(name)
-    local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+    local params = make_position_params(bufnr, client.offset_encoding)
     params.newName = name
     client:request("textDocument/rename", params, function(err, result)
       if err then
@@ -73,7 +96,7 @@ M.references = function(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local client = client_for(bufnr)
   if not client then return end
-  local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+  local params = make_position_params(bufnr, client.offset_encoding)
   params.context = { includeDeclaration = true }
   client:request("textDocument/references", params, function(err, result)
     if err then
@@ -97,6 +120,7 @@ end
 ---@param bufnr? number
 M.enable_folding = function(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  folding_enabled[bufnr] = true
   for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
     vim.wo[win].foldmethod = "expr"
     vim.wo[win].foldexpr = "v:lua.vim.lsp.foldexpr()"
@@ -106,6 +130,7 @@ end
 ---@param bufnr? number
 M.disable_folding = function(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  folding_enabled[bufnr] = false
   for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
     if vim.wo[win].foldexpr == "v:lua.vim.lsp.foldexpr()" then
       vim.wo[win].foldmethod = "manual"
@@ -132,7 +157,9 @@ M.attach = function(bufnr, opts)
     vim.api.nvim_create_autocmd("BufWinEnter", {
       group = vim.api.nvim_create_augroup("QluelsFolding_" .. bufnr, { clear = true }),
       buffer = bufnr,
-      callback = function() M.enable_folding(bufnr) end,
+      callback = function()
+        if folding_enabled[bufnr] then M.enable_folding(bufnr) end
+      end,
     })
   end
 end
