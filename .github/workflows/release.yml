@@ -7,6 +7,9 @@ on:
     types:
       - published
 
+env:
+  QLUELS_VERSION: "v3.11.1"
+
 jobs:
   build:
     name: Run tests
@@ -22,7 +25,7 @@ jobs:
           nvim_version: ${{ matrix.neovim_version }}
 
   integration:
-    name: qlue-ls 3.11.1 protocol smoke test
+    name: qlue-ls protocol smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,8 +35,8 @@ jobs:
         with:
           version: v0.11.0
           neovim: true
-      - name: Install qlue-ls 3.11.1
-        run: cargo install --git https://github.com/IoannisNezis/Qlue-ls --tag v3.11.1 --locked
+      - name: Install qlue-ls ${{ env.QLUELS_VERSION }} 
+        run: cargo install --git https://github.com/IoannisNezis/Qlue-ls --tag $QLUELS_VERSION --locked qlue-ls
       - name: Exercise native custom methods
         run: nvim --headless -u NONE --cmd "set rtp+=$PWD" -l spec/integration.lua
 
@@ -46,6 +49,11 @@ jobs:
       - name: Build Changelog
         id: github_release
         uses: mikepenz/release-changelog-builder-action@v6.0.1
+        with:
+          configurationJson: |
+            {
+              "pr_template": "- #{{TITLE}}\n   - PR: ##{{NUMBER}}\n\n#{{BODY}}"
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release
