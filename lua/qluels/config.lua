@@ -45,6 +45,8 @@
 ---@field result_buffer? QluelsResultBufferConfig Result buffer display options
 ---@field on_type_formatting? boolean Enable on-type formatting (default: false)
 ---@field semantic_highlighting? boolean Enable semantic token highlighting (default: true)
+---@field document_highlight? boolean Automatically highlight the variable under the cursor (default: false)
+---@field folding? boolean Configure LSP folding for SPARQL windows (default: false)
 ---@field settings? QluelsSettings Server settings to push on attach
 ---@field query_dir? string Directory for saved SPARQL queries, relative to project root (default: ".qluels")
 
@@ -83,6 +85,8 @@ M.defaults = {
   auto_attach = true,
   on_type_formatting = false,
   semantic_highlighting = true,
+  document_highlight = false,
+  folding = false,
   settings = nil,
   result_buffer = {
     position = "below",
@@ -172,6 +176,14 @@ M.validate = function(config)
     return false, "semantic_highlighting must be a boolean"
   end
 
+  if config.document_highlight ~= nil and type(config.document_highlight) ~= "boolean" then
+    return false, "document_highlight must be a boolean"
+  end
+
+  if config.folding ~= nil and type(config.folding) ~= "boolean" then
+    return false, "folding must be a boolean"
+  end
+
   if config.settings ~= nil and type(config.settings) ~= "table" then
     return false, "settings must be a table"
   end
@@ -200,6 +212,75 @@ M.validate = function(config)
   end
 
   return true, nil
+end
+
+local settings_keys = {
+  align_predicates = "alignPredicates",
+  align_prefixes = "alignPrefixes",
+  separate_prologue = "separatePrologue",
+  capitalize_keywords = "capitalizeKeywords",
+  insert_spaces = "insertSpaces",
+  tab_size = "tabSize",
+  where_new_line = "whereNewLine",
+  filter_same_line = "filterSameLine",
+  line_length = "lineLength",
+  contract_triples = "contractTriples",
+  keep_empty_lines = "keepEmptyLines",
+  timeout_ms = "timeoutMs",
+  result_size_limit = "resultSizeLimit",
+  subject_completion_trigger_length = "subjectCompletionTriggerLength",
+  object_completion_suffix = "objectCompletionSuffix",
+  variable_completion_limit = "variableCompletionLimit",
+  same_subject_semicolon = "sameSubjectSemicolon",
+  add_missing = "addMissing",
+  remove_unused = "removeUnused",
+  object_variable = "objectVariable",
+  auto_line_break = "autoLineBreak",
+}
+
+local settings_objects = {
+  format = true,
+  completion = true,
+  prefixes = true,
+  replacements = true,
+}
+
+local function settings_to_wire(value, object_hint)
+  if type(value) ~= "table" then
+    return value
+  end
+
+  if next(value) == nil and object_hint then
+    return vim.empty_dict()
+  end
+
+  local converted = {}
+  for key, child in pairs(value) do
+    local wire_key = type(key) == "string" and (settings_keys[key] or key) or key
+    converted[wire_key] = settings_to_wire(child, settings_objects[key] == true)
+  end
+  return converted
+end
+
+---Convert the documented Lua settings shape to qlue-ls' JSON shape.
+---@param value any
+---@return any
+M.settings_to_wire = function(value)
+  return settings_to_wire(value, true)
+end
+
+---Prepare backend map fields for JSON encoding. Empty Lua tables otherwise
+---encode as arrays, while qlue-ls requires JSON objects for these fields.
+---@param backend QluelsBackend
+---@return QluelsBackend
+M.backend_to_wire = function(backend)
+  local converted = vim.deepcopy(backend)
+  for _, key in ipairs({ "prefixMap", "queries" }) do
+    if type(converted[key]) == "table" and next(converted[key]) == nil then
+      converted[key] = vim.empty_dict()
+    end
+  end
+  return converted
 end
 
 ---Current active configuration

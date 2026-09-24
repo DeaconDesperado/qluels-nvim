@@ -222,6 +222,13 @@ describe("qluels.config", function()
       assert.matches("semantic_highlighting", err)
     end)
 
+    it("validates opt-in editor features", function()
+      assert.is_true(config.validate({ document_highlight = true, folding = true }))
+      local valid, err = config.validate({ folding = "yes" })
+      assert.is_false(valid)
+      assert.matches("folding", err)
+    end)
+
     it("accepts settings option", function()
       local cfg = {
         settings = {
@@ -272,6 +279,28 @@ describe("qluels.config", function()
       local valid, err = config.validate(cfg)
       assert.is_false(valid)
       assert.matches("query_dir", err)
+    end)
+  end)
+
+  describe("settings_to_wire", function()
+    it("converts nested settings without changing array entries", function()
+      local wire = config.settings_to_wire({
+        format = { keep_empty_lines = true, compact = 80 },
+        replacements = { object_variable = { { pattern = "x", replacement = "y" } } },
+      })
+      assert.is_true(wire.format.keepEmptyLines)
+      assert.equals(80, wire.format.compact)
+      assert.equals("x", wire.replacements.objectVariable[1].pattern)
+    end)
+  end)
+
+  describe("backend_to_wire", function()
+    it("encodes empty backend maps as JSON objects", function()
+      local wire = config.backend_to_wire({
+        name = "test", url = "http://example.test", prefixMap = {}, queries = {},
+      })
+      assert.is_false(vim.islist(wire.prefixMap))
+      assert.is_false(vim.islist(wire.queries))
     end)
   end)
 

@@ -17,11 +17,13 @@ vim.api.nvim_create_user_command("QluelsAddBackend", function(opts)
   end
 
   local lsp = require("qluels.lsp")
-  local success = lsp.add_backend(params)
-
-  if success then
-    vim.notify("Backend added: " .. (params.name or "unknown"), vim.log.levels.INFO)
-  end
+  lsp.add_backend(params, nil, function(success, err)
+    if success then
+      vim.notify("Backend added: " .. (params.name or "unknown"), vim.log.levels.INFO)
+    else
+      vim.notify("Failed to add backend: " .. (err or "unknown error"), vim.log.levels.ERROR)
+    end
+  end)
 end, {
   nargs = 1,
   desc = "Add a SPARQL backend to qlue-ls",
@@ -89,7 +91,7 @@ end, {
 
 ---Ping a backend to check availability
 ---Usage: :QLuelsPingBackend [backend_name]
-vim.api.nvim_create_user_command("QLuelsPingBackend", function(opts)
+local function ping_backend_command(opts)
   local backend_name = opts.args ~= "" and opts.args or nil
 
   local lsp = require("qluels.lsp")
@@ -103,9 +105,17 @@ vim.api.nvim_create_user_command("QLuelsPingBackend", function(opts)
       vim.notify(name .. " is not available: " .. error_msg, vim.log.levels.ERROR)
     end
   end)
-end, {
+end
+
+vim.api.nvim_create_user_command("QluelsPingBackend", ping_backend_command, {
   nargs = "?",
   desc = "Ping a SPARQL backend to check availability",
+})
+
+-- Compatibility alias for the historical capitalization typo.
+vim.api.nvim_create_user_command("QLuelsPingBackend", ping_backend_command, {
+  nargs = "?",
+  desc = "Alias for :QluelsPingBackend",
 })
 
 ---Execute the current buffer as a SPARQL query
@@ -121,17 +131,52 @@ end, {
 })
 
 ---Execute a visual selection as a SPARQL query
----Usage: :'<,'>QluelsExecuteSelection [backend_name]
+---Usage: :'<,'>QluelsExecuteSelection [access_token]
 vim.api.nvim_create_user_command("QluelsExecuteSelection", function(opts)
-  local backend_name = opts.args ~= "" and opts.args or nil
+  local access_token = opts.args ~= "" and opts.args or nil
 
   local query = require("qluels.query")
-  query.execute_visual_query(backend_name)
+  query.execute_visual_query(access_token)
 end, {
   nargs = "?",
   range = true,
   desc = "Execute visual selection as a SPARQL query",
 })
+
+vim.api.nvim_create_user_command("QluelsJump", function(opts)
+  require("qluels.navigation").jump(opts.bang)
+end, {
+  bang = true,
+  nargs = 0,
+  desc = "Jump to the next qlue-ls target (! for previous)",
+})
+
+vim.api.nvim_create_user_command("QluelsRename", function(opts)
+  require("qluels.navigation").rename(opts.args ~= "" and opts.args or nil)
+end, {
+  nargs = "?",
+  desc = "Rename the SPARQL variable under the cursor",
+})
+
+vim.api.nvim_create_user_command("QluelsReferences", function()
+  require("qluels.navigation").references()
+end, { nargs = 0, desc = "List references to the SPARQL variable under the cursor" })
+
+vim.api.nvim_create_user_command("QluelsHighlight", function()
+  require("qluels.navigation").highlight()
+end, { nargs = 0, desc = "Highlight references under the cursor" })
+
+vim.api.nvim_create_user_command("QluelsClearHighlights", function()
+  require("qluels.navigation").clear_highlights()
+end, { nargs = 0, desc = "Clear qlue-ls document highlights" })
+
+vim.api.nvim_create_user_command("QluelsFoldingEnable", function()
+  require("qluels.navigation").enable_folding()
+end, { nargs = 0, desc = "Enable qlue-ls folding for the current SPARQL buffer" })
+
+vim.api.nvim_create_user_command("QluelsFoldingDisable", function()
+  require("qluels.navigation").disable_folding()
+end, { nargs = 0, desc = "Disable qlue-ls folding for the current SPARQL buffer" })
 
 ---Close the query results window
 ---Usage: :QluelsCloseResults

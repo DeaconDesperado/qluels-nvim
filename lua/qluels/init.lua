@@ -10,6 +10,8 @@ local constants = require("qluels.constants");
 local config = require("qluels.config")
 local lsp = require("qluels.lsp")
 local query = require("qluels.query")
+local navigation = require("qluels.navigation")
+local project = require("qluels.project")
 
 ---Setup the plugin
 ---@param opts? QluelsConfig User configuration
@@ -23,13 +25,16 @@ M.setup = function(opts)
     return
   end
 
-  if opts.auto_attach then
+  local current = config.current
+
+  if current.auto_attach then
     -- Create autocommand for filetype-specific LSP activation
     vim.api.nvim_create_autocmd("FileType", {
-      pattern = opts.server.filetypes or {"sparql"},
+      pattern = current.server.filetypes or {"sparql"},
       group = vim.api.nvim_create_augroup("QluelsLspAttach", { clear = true }),
       callback = function(args)
         local default_capabilities = vim.lsp.protocol.make_client_capabilities()
+        local root_dir = project.root(args.buf)
 
         vim.lsp.start({
           name = constants.QLUE_IDENTITY,
@@ -37,10 +42,11 @@ M.setup = function(opts)
           capabilities = vim.tbl_deep_extend(
             "force",
             default_capabilities,
-            opts.server.capabilities or {}
+            current.server.capabilities or {}
           ),
-          root_dir = vim.fs.root(args.buf, {".git"}) or vim.fn.getcwd(),
-          on_attach = opts.server.on_attach,
+          root_dir = root_dir,
+          cmd_cwd = root_dir,
+          on_attach = current.server.on_attach,
         }, { bufnr = args.buf })
       end,
     })
@@ -75,8 +81,9 @@ M.setup = function(opts)
   local has_backends = next(config.current.backends)
   local has_settings = config.current.settings ~= nil
   local has_on_type_formatting = config.current.on_type_formatting
+  local has_editor_features = config.current.document_highlight or config.current.folding
 
-  if has_backends or has_settings or has_on_type_formatting then
+  if has_backends or has_settings or has_on_type_formatting or has_editor_features then
     vim.api.nvim_create_autocmd("LspAttach", {
       group = vim.api.nvim_create_augroup("QluelsBackendSetup", { clear = true }),
       callback = function(args)
@@ -85,8 +92,13 @@ M.setup = function(opts)
           -- Register all configured backends
           if has_backends then
             for name, backend in pairs(config.current.backends) do
-              lsp.add_backend(backend, args.buf)
-              vim.notify("Registered backend: " .. name, vim.log.levels.INFO)
+              lsp.add_backend(backend, args.buf, function(registered, register_err)
+                if registered then
+                  vim.notify("Registered backend: " .. name, vim.log.levels.INFO)
+                else
+                  vim.notify("Failed to register backend " .. name .. ": " .. register_err, vim.log.levels.ERROR)
+                end
+              end)
             end
           end
 
@@ -94,6 +106,8 @@ M.setup = function(opts)
           if has_settings then
             lsp.change_settings(config.current.settings, args.buf)
           end
+
+          navigation.attach(args.buf, config.current)
 
           -- Set up on-type formatting if enabled
           if config.current.on_type_formatting then
@@ -127,9 +141,12 @@ M.setup = function(opts)
                 if char == ";" or char == "." then
                   vim.defer_fn(function()
                     if vim.api.nvim_buf_is_valid(args.buf) then
+                      local row = vim.fn.line(".") - 1
+                      local byte_col = vim.fn.col(".") - 1
+                      local line = vim.api.nvim_buf_get_lines(args.buf, row, row + 1, false)[1] or ""
                       request_on_type_formatting(char, {
-                        line = vim.fn.line(".") - 1,
-                        character = vim.fn.col(".") - 1,
+                        line = row,
+                        character = vim.str_utfindex(line, client.offset_encoding, byte_col, false),
                       })
                     end
                   end, 0)
@@ -179,5 +196,6 @@ M.config = config
 M.lsp = lsp
 M.query = query
 M.library = require("qluels.library")
+M.navigation = navigation
 
 return M

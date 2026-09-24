@@ -11,12 +11,13 @@ Neovim plugin for the [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) SPARQL 
 - **Parse Tree Viewer**: Inspect the SPARQL parse tree for debugging
 - **On-Type Formatting**: Automatic formatting on `;`, `.` triggers (opt-in)
 - **Settings Forwarding**: Push formatting/completion settings to qlue-ls on attach
+- **Navigation**: Server-aware jump, rename, references, document highlights, and folding
 - **Health Checks**: Integrated `:checkhealth` support
 
 ## Requirements
 
-- Neovim 0.8.0 or later
-- [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) v2.0+ language server
+- Neovim 0.11.0 or later
+- [qlue-ls](https://github.com/IoannisNezis/Qlue-ls) v3.11.1 or later
 - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) (optional, for running tests)
 
 ## Installation
@@ -81,6 +82,10 @@ require("qluels").setup({
   -- Typing ';' or '.' after a triple triggers automatic formatting
   on_type_formatting = false,
 
+  -- Optional editor automation (both default to false)
+  document_highlight = false,
+  folding = false,
+
   -- Server settings pushed to qlue-ls on attach (optional)
   settings = {
     format = {
@@ -103,11 +108,19 @@ require("qluels").setup({
 
 ### Backend Configuration
 
-See the [Qluels documentation](https://docs.qlue-ls.com/04_configuration/) for backend specific configuration.
+See the [Qlue-ls documentation](https://docs.qlue-ls.com/03_configuration/) for backend-specific configuration.
 
 Backends configured via lua configuration tables are additive to any defined in qlue-ls's own configuration (the
 plugin calls `addBackend` for every entry).  This allows you to store project local backends in your repository's
-`qlue-ls.[yml|toml]` while storing global ones in your nvim configuration.
+`qlue-ls.[yml|yaml|toml]` while storing global ones in your nvim configuration.
+
+Lua server settings use the documented `snake_case` names above. The plugin converts them to the camelCase JSON
+fields used by the qlue-ls runtime protocol. Backend fields and keys inside `queries` use their upstream camelCase
+names.
+
+Qlue-ls 3.x renamed variables exposed to custom completion and hover templates from `qlue_ls_*` to `qls_*`.
+Qlue-ls 3.9 also upgraded to Tera v2: numeric access such as `prefix.0` must become `prefix[0]`, and Tera macros
+must be migrated to components. Normal and custom completion queries remain fully supported by this plugin.
 
 ### Query Library
 
@@ -134,6 +147,22 @@ require("qluels").setup({
 })
 ```
 
+### Navigation and editor features
+
+Qlue-ls 3.x supplies scoped rename, references, document highlights, folding ranges, and jump navigation. The plugin
+does not install keymaps; map its commands however you prefer:
+
+```lua
+vim.keymap.set("n", "<Tab>", "<cmd>QluelsJump<cr>", { desc = "Next Qlue target" })
+vim.keymap.set("n", "<S-Tab>", "<cmd>QluelsJump!<cr>", { desc = "Previous Qlue target" })
+vim.keymap.set("n", "grn", "<cmd>QluelsRename<cr>", { desc = "Rename SPARQL variable" })
+vim.keymap.set("n", "grr", "<cmd>QluelsReferences<cr>", { desc = "SPARQL references" })
+```
+
+Set `document_highlight = true` or `folding = true` in `setup()` to automate those features. Otherwise, use the
+manual commands below. The `qlueLs/completionQuery` debugging notification is WASM-only upstream and is not emitted
+by the native server launched by this plugin; normal and custom completions are unaffected.
+
 ## Commands
 
 | Command | Description |
@@ -142,10 +171,15 @@ require("qluels").setup({
 | `:QluelsListBackends` | List all registered backends (`*` marks default) |
 | `:QluelsSetBackend {name}` | Set the default backend |
 | `:QluelsSetBackend` | Without name specified, will launch your configured picker to choose backend |
-| `:QLuelsPingBackend [{name}]` | Check backend availability |
+| `:QluelsPingBackend [{name}]` | Check backend availability (`:QLuelsPingBackend` remains an alias) |
 | `:QluelsExecute [{accessToken}]` | Execute buffer as SPARQL query |
 | `:QluelsExecuteSelection [{accessToken}]` | Execute visual selection as query |
 | `:QluelsParseTree` | Display the SPARQL parse tree (use `!` to skip trivia) |
+| `:QluelsJump[!]` | Jump to the next server target (`!` for previous) |
+| `:QluelsRename [{name}]` | Rename the variable under the cursor |
+| `:QluelsReferences` | Show scoped variable references in the location list |
+| `:QluelsHighlight` / `:QluelsClearHighlights` | Control document reference highlighting |
+| `:QluelsFoldingEnable` / `:QluelsFoldingDisable` | Control LSP folding for the current buffer |
 | `:QluelsLibraryExecute [{accessToken}]` | Pick a query from the library and execute it |
 | `:QluelsLibraryLoad` | Pick a query from the library and open it in the current buffer |
 | `:QluelsLibraryLoad!` | Pick a query from the library and open it in a split |
@@ -163,7 +197,7 @@ require("qluels").setup({
 :QluelsSetBackend wikidata
 
 " Ping a backend
-:QLuelsPingBackend wikidata
+:QluelsPingBackend wikidata
 
 " Execute current buffer as a query
 :QluelsExecute
@@ -176,6 +210,10 @@ require("qluels").setup({
 
 " View parse tree without trivia (whitespace, comments)
 :QluelsParseTree!
+
+" Navigate qlue-ls placeholders (use ! to move backwards)
+:QluelsJump
+:QluelsJump!
 
 " Browse query library and execute a query
 :QluelsLibraryExecute
